@@ -160,16 +160,20 @@
     // Helpers
     const $ = sel => document.querySelector(sel)
     const el = (tag, props={}, children=[]) => {
-      const n = document.createElement(tag)
-      Object.entries(props).forEach(([k,v])=>{
-        if (k === 'class') n.className = v
-        else if (k === 'html') n.innerHTML = v
-        else if (k.startsWith('on')) n.addEventListener(k.slice(2), v)
-        else n.setAttribute(k, v)
-      })
-      children.forEach(c=> n.appendChild(c))
-      return n
-    }
+  const n = document.createElement(tag)
+  Object.entries(props).forEach(([k,v])=>{
+    if (k === 'class') n.className = v
+    else if (k === 'html') n.innerHTML = v
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v)
+    else n.setAttribute(k, v)
+  })
+  children.forEach(c=>{
+    // turn strings/numbers into Text nodes
+    if (!(c instanceof Node)) c = document.createTextNode(String(c))
+    n.appendChild(c)
+  })
+  return n
+}
     const fmtDateTime = (iso)=> new Date(iso).toLocaleString('it-IT', { dateStyle:'medium', timeStyle:'short' })
 
     if (!window.env?.SUPABASE_URL || !window.env?.SUPABASE_ANON_KEY) {
@@ -268,43 +272,30 @@
     }
 
     async function loadTables(){
-  // Clear search filtering
-  const s = document.getElementById('search'); if (s) { s.value=''; }
+  	const q = (document.getElementById('search')?.value || '').trim();
+  	let query = supabase.from('tables_view').select('*').order('starts_at', { ascending: true });
+  	if (q) query = query.ilike('name', `%${q}%`);
 
-  const { data, error } = await supabase
-    .from('tables_view')
-    .select('*')
-    .order('starts_at', { ascending: true });
+  	const { data, error } = await query;
+  	const wrap = document.getElementById('tablesList');
+  	if (!wrap) { console.warn('#tablesList non trovato'); return; }
 
-  const list = document.getElementById('tablesList');
-  if (!list) { console.warn('#tablesList non trovato'); return; }
+  	wrap.innerHTML = '';
+  	if (error) {
+    		console.error(error);
+    		wrap.innerHTML = '<div class="muted">Errore nel caricamento tavoli</div>';
+    		return;
+  	}
+  	if (!data?.length) {
+    		wrap.innerHTML = '<div class="muted center">Nessun tavolo trovato.</div>';
+    		return;
+  	}
 
-  list.innerHTML = '';
-  if (error) { list.innerHTML = '<div class="muted">Errore caricamento</div>'; console.error(error); return; }
-  if (!data?.length) { list.innerHTML = '<div class="muted center">Nessun tavolo</div>'; return; }
-
-  data.forEach(r => {
-    const d = document.createElement('div');
-    d.className = 'tile';
-    d.innerHTML = `
-      <div class="avatar" style="width:84px;height:84px;font-size:28px">🎲</div>
-      <div class="grow">
-        <div><strong>${r.name}</strong></div>
-        <div class="muted">
-          ${new Date(r.starts_at).toLocaleString('it-IT')}
-          • ${r.duration_minutes} min
-          • ${r.seats} posti
-          • <span class="pill">${r.complexity}</span>
-        </div>
-        <div class="muted">Creato da <b>${r.creator_name || 'utente'}</b> • Prenotati: <b>${r.reserved}/${r.seats}</b></div>
-      </div>
-    `;
-    list.appendChild(d);
-  });
-}
+  	data.forEach(row => wrap.appendChild(renderTableTile(row)));
+	}
 
     
-function renderTableTile(row){
+function renderTable(row){
   const mine = row.creator_id === (session?.user?.id);
   const canAdmin = (typeof isAdmin !== 'undefined') ? isAdmin : !!(profile && profile.is_admin);
 
