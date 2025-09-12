@@ -249,7 +249,41 @@
 }
 
     async function fetchProfile(){
-      const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
+      const { data }
+    async function refreshAdminFlag(){
+      try {
+        // Read from JWT first (trust server-issued role)
+        const { data: { session: s } } = await supabase.auth.getSession();
+        const jwtRole = s?.user?.app_metadata?.role;
+        const jwtAdmin = jwtRole === 'admin';
+
+        // Read from profiles if present (server-computed column or stored flag)
+        // If profiles table doesn't have is_admin, this simply does nothing
+        let profAdmin = false;
+        if (profile && Object.prototype.hasOwnProperty.call(profile, 'is_admin')) {
+          profAdmin = !!profile.is_admin;
+        } else if (profile && typeof profile.is_admin === 'undefined') {
+          // Try to refresh profile to read any new computed columns
+          const { data } = await supabase.from('profiles').select('*').eq('id', s.user.id).maybeSingle();
+          if (data) {
+            profile = data;
+            profAdmin = !!data.is_admin;
+          }
+        }
+
+        const isAdmin = jwtAdmin || profAdmin;
+        // Toggle Users tab
+        const usersTab = document.getElementById('tabUtenti');
+        if (usersTab) {
+          if (isAdmin) usersTab.classList.remove('hidden'); else usersTab.classList.add('hidden');
+        }
+        // Store flag on window for convenience
+        window.__isAdmin = isAdmin;
+      } catch (e) {
+        console.warn('refreshAdminFlag error', e);
+      }
+    }
+ = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
       profile = data
     }
 
@@ -272,10 +306,15 @@
       }
     }
 
-    async function handleLogin(){
+    
+async function handleLogin(){
   const input = document.getElementById('usernameInput');
-  const username = (input?.value || '').trim();
+  let username = (input?.value || '').trim();
   if (!username) { alert('Inserisci un username.'); return; }
+
+  // Normalize and validate
+  username = normalizeUsername(username);
+  if (username.length < 3) { alert('Username troppo corto (min 3).'); return; }
 
   // Ensure there is an auth session for this browser
   let { data: { session: s } } = await supabase.auth.getSession();
@@ -294,8 +333,14 @@
     );
 
   if (error) {
-    if (error.code === '23505') {           // unique violation (e.g., username already used)
+    // 23505 = unique violation (e.g., username already used)
+    if (error.code === '23505' || error.message?.includes('duplicat')) {
       alert('Username già in uso. Scegline un altro.');
+      return;
+    }
+    // 409 fallback (legacy): advise reload
+    if (String(error.status) === '409') {
+      alert('Conflitto profilo. Riprova più tardi o ricarica la pagina.');
       return;
     }
     alert(error.message || 'Errore salvataggio profilo');
