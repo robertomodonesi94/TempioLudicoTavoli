@@ -342,11 +342,12 @@ function renderTableTile(row){
     async function reserve(id){await supabase.from('reservations').insert({table_id:id});loadTables();loadReservations()}
     async function unreserve(id){await supabase.from('reservations').delete().match({table_id:id,user_id:session.user.id});loadTables();loadReservations()}
     async function deleteTable(id){if(!confirm('Eliminare tavolo?'))return;await supabase.from('tables').delete().eq('id',id);loadTables();loadReservations
+
+()}
+
     // aliases so the buttons work
 	const reserveSeat = (tableId) => reserve(tableId);
 	const unreserveSeat = (tableId) => unreserve(tableId);
-
-()}
 
     // Prenotazioni
     async function loadReservations(){
