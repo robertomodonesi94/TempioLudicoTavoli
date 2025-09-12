@@ -189,7 +189,6 @@
     	storageKey: 'tempio-ludico-auth'
   	}
 	});
-window.supabase = supabase; // <--- add this
 
     $('#privacyFrame').src = window.env.PRIVACY_URL || 'about:blank'
 
@@ -250,41 +249,7 @@ window.supabase = supabase; // <--- add this
 }
 
     async function fetchProfile(){
-      const { data }
-    async function refreshAdminFlag(){
-      try {
-        // Read from JWT first (trust server-issued role)
-        const { data: { session: s } } = await supabase.auth.getSession();
-        const jwtRole = s?.user?.app_metadata?.role;
-        const jwtAdmin = jwtRole === 'admin';
-
-        // Read from profiles if present (server-computed column or stored flag)
-        // If profiles table doesn't have is_admin, this simply does nothing
-        let profAdmin = false;
-        if (profile && Object.prototype.hasOwnProperty.call(profile, 'is_admin')) {
-          profAdmin = !!profile.is_admin;
-        } else if (profile && typeof profile.is_admin === 'undefined') {
-          // Try to refresh profile to read any new computed columns
-          const { data } = await supabase.from('profiles').select('*').eq('id', s.user.id).maybeSingle();
-          if (data) {
-            profile = data;
-            profAdmin = !!data.is_admin;
-          }
-        }
-
-        const isAdmin = jwtAdmin || profAdmin;
-        // Toggle Users tab
-        const usersTab = document.getElementById('tabUtenti');
-        if (usersTab) {
-          if (isAdmin) usersTab.classList.remove('hidden'); else usersTab.classList.add('hidden');
-        }
-        // Store flag on window for convenience
-        window.__isAdmin = isAdmin;
-      } catch (e) {
-        console.warn('refreshAdminFlag error', e);
-      }
-    }
- = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
+      const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
       profile = data
     }
 
@@ -307,15 +272,10 @@ window.supabase = supabase; // <--- add this
       }
     }
 
-    
-async function handleLogin(){
+    async function handleLogin(){
   const input = document.getElementById('usernameInput');
-  let username = (input?.value || '').trim();
+  const username = (input?.value || '').trim();
   if (!username) { alert('Inserisci un username.'); return; }
-
-  // Normalize and validate
-  username = normalizeUsername(username);
-  if (username.length < 3) { alert('Username troppo corto (min 3).'); return; }
 
   // Ensure there is an auth session for this browser
   let { data: { session: s } } = await supabase.auth.getSession();
@@ -334,14 +294,8 @@ async function handleLogin(){
     );
 
   if (error) {
-    // 23505 = unique violation (e.g., username already used)
-    if (error.code === '23505' || error.message?.includes('duplicat')) {
+    if (error.code === '23505') {           // unique violation (e.g., username already used)
       alert('Username già in uso. Scegline un altro.');
-      return;
-    }
-    // 409 fallback (legacy): advise reload
-    if (String(error.status) === '409') {
-      alert('Conflitto profilo. Riprova più tardi o ricarica la pagina.');
       return;
     }
     alert(error.message || 'Errore salvataggio profilo');
@@ -556,6 +510,84 @@ async function adminEditTable(row){
     // Avvio
     ensureAuth()
   </script>
+
+
+<section id="pageUtenti" class="hidden" style="padding: 16px;">
+      <h2>Utenti</h2>
+      <div id="usersList">Caricamento utenti…</div>
+    </section>
+
+<script>
+function showUsersTab(isAdmin) {
+  const tabBtn = document.getElementById('tabUtenti');
+  const tabLi = tabBtn ? tabBtn.parentElement : null;
+  const page = document.getElementById('pageUtenti');
+  if (!tabBtn || !tabLi || !page) return;
+  if (isAdmin) {
+    tabLi.classList.remove('hidden');
+    tabBtn.classList.remove('hidden');
+  } else {
+    tabLi.classList.add('hidden');
+    tabBtn.classList.add('hidden');
+    page.classList.add('hidden');
+  }
+}
+</script>
+
+<script>
+async function refreshAdminFlag(){
+  try {
+    const { data: { session: s } } = await supabase.auth.getSession();
+    const isAdmin = (s?.user?.app_metadata?.role === 'admin') || !!(window.profile?.is_admin);
+    window.__isAdmin = isAdmin;
+    showUsersTab(isAdmin);
+  } catch (e) {
+    console.warn('refreshAdminFlag error', e);
+  }
+}
+</script>
+
+<script>
+async function renderUsersPage(){
+  const list = document.getElementById('usersList');
+  if (!list) return;
+  try {
+    const { data, error } = await supabase.from('profiles').select('id, username, created_at').order('created_at', { ascending: false });
+    if (error) throw error;
+    if (!data || data.length === 0) { list.textContent = 'Nessun utente.'; return; }
+    list.innerHTML = '';
+    const ul = document.createElement('ul');
+    ul.style.listStyle = 'none';
+    ul.style.padding = '0';
+    data.forEach(u => {
+      const li = document.createElement('li');
+      li.style.padding = '8px 0';
+      li.style.borderBottom = '1px solid #eee';
+      li.textContent = `${u.username} — ${u.id}`;
+      ul.appendChild(li);
+    });
+    list.appendChild(ul);
+  } catch (e) {
+    console.error(e);
+    list.textContent = 'Errore nel caricamento utenti.';
+  }
+}
+(function bindUsersTab(){
+  const btn = document.getElementById('tabUtenti');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    // Show page and render
+    document.getElementById('pageUtenti')?.classList.remove('hidden');
+    await renderUsersPage();
+  });
+})();
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  try { await refreshAdminFlag(); } catch {}
+});
+</script>
 </body>
 </html>
 
