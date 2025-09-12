@@ -268,27 +268,40 @@
     }
 
     async function loadTables(){
-  	const q = (document.getElementById('search')?.value || '').trim();
-  	let query = supabase.from('tables_view').select('*').order('starts_at', { ascending: true });
-  	if (q) query = query.ilike('name', `%${q}%`);
+  // Clear search filtering
+  const s = document.getElementById('search'); if (s) { s.value=''; }
 
-  	const { data, error } = await query;
-  	const wrap = document.getElementById('tablesList');
-  	if (!wrap) { console.warn('#tablesList non trovato'); return; }
+  const { data, error } = await supabase
+    .from('tables_view')
+    .select('*')
+    .order('starts_at', { ascending: true });
 
-  	wrap.innerHTML = '';
-  	if (error) {
-    		console.error(error);
-    		wrap.innerHTML = '<div class="muted">Errore nel caricamento tavoli</div>';
-    		return;
-  	}
-  	if (!data?.length) {
-    		wrap.innerHTML = '<div class="muted center">Nessun tavolo trovato.</div>';
-    		return;
-  	}
+  const list = document.getElementById('tablesList');
+  if (!list) { console.warn('#tablesList non trovato'); return; }
 
-  	data.forEach(row => wrap.appendChild(renderTableTile(row)));
-	}
+  list.innerHTML = '';
+  if (error) { list.innerHTML = '<div class="muted">Errore caricamento</div>'; console.error(error); return; }
+  if (!data?.length) { list.innerHTML = '<div class="muted center">Nessun tavolo</div>'; return; }
+
+  data.forEach(r => {
+    const d = document.createElement('div');
+    d.className = 'tile';
+    d.innerHTML = `
+      <div class="avatar" style="width:84px;height:84px;font-size:28px">🎲</div>
+      <div class="grow">
+        <div><strong>${r.name}</strong></div>
+        <div class="muted">
+          ${new Date(r.starts_at).toLocaleString('it-IT')}
+          • ${r.duration_minutes} min
+          • ${r.seats} posti
+          • <span class="pill">${r.complexity}</span>
+        </div>
+        <div class="muted">Creato da <b>${r.creator_name || 'utente'}</b> • Prenotati: <b>${r.reserved}/${r.seats}</b></div>
+      </div>
+    `;
+    list.appendChild(d);
+  });
+}
 
     
 function renderTableTile(row){
