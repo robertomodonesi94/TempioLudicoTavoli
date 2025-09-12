@@ -156,11 +156,276 @@
   <!-- Main logic -->
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+    // Helpers
+    const $ = sel => document.querySelector(sel)
+    const el = (tag, props={}, children=[]) => {
+      const n = document.createElement(tag)
+      Object.entries(props).forEach(([k,v])=>{
+        if (k === 'class') n.className = v
+        else if (k === 'html') n.innerHTML = v
+        else if (k.startsWith('on')) n.addEventListener(k.slice(2), v)
+        else n.setAttribute(k, v)
+      })
+      children.forEach(c=> n.appendChild(c))
+      return n
+    }
+    const fmtDateTime = (iso)=> new Date(iso).toLocaleString('it-IT', { dateStyle:'medium', timeStyle:'short' })
+
+    // Config check
+    function assertEnv() {
+      if (!window.env?.SUPABASE_URL || !window.env?.SUPABASE_ANON_KEY) {
+        alert('Config mancante: imposta SUPABASE_URL e SUPABASE_ANON_KEY in window.env nel <head>.')
+        throw new Error('Missing env config')
+      }
+    }
+    assertEnv()
+
     const supabase = createClient(window.env.SUPABASE_URL, window.env.SUPABASE_ANON_KEY)
 
-    // (… tutto lo script con login, CRUD tavoli, prenotazioni, utenti …)
-    // 👉 identico alla versione completa che ti ho dato prima,
-    // solo che ora legge da window.env.*
+    // UI wiring
+    $('#privacyFrame').src = window.env.PRIVACY_URL || ''
+
+    const tabsNav = $('#tabs')
+    tabsNav.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.tab')
+      if(!btn) return
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'))
+      btn.classList.add('active')
+      const tab = btn.dataset.tab
+      document.querySelectorAll('[id^="page-"]').forEach(sec=>sec.classList.add('hidden'))
+      $(`#page-${tab}`).classList.remove('hidden')
+      if(tab==='tavoli') loadTables()
+      if(tab==='prenotazioni') loadReservations()
+      if(tab==='utenti') loadUsers()
+    })
+
+    // Global state
+    let session = null
+    let profile = null // { id, username, is_admin }
+
+    // Auth + Profile
+    async function ensureAuth(){
+      try {
+        const { data: { session: s } } = await supabase.auth.getSession()
+        session = s
+        if (!session) {
+          const { data, error } = await supabase.auth.signInAnonymously()
+          if (error) throw error
+          session = data.session
+        }
+        await fetchProfile()
+        renderLogin()
+      } catch (err) {
+        console.error('Auth error', err)
+        alert('Errore autenticazione. Verifica che Anonymous sign-ins sia abilitato in Supabase e che le chiavi siano corrette.')
+      }
+    }
+
+    async function fetchProfile(){
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
+      if(error){ console.error(error) }
+      profile = data
+    }
+
+    function renderLogin(){
+      const badge = el('div', {}, [
+        el('span', { class:'avatar' , html:(profile?.username||'?').slice(0,2).toUpperCase() }),
+        el('span', { style:'margin-left:8px;font-weight:800' , html: profile?.username||'ospite' }),
+        profile?.is_admin ? el('span',{ class:'pill', style:'margin-left:8px' , html:'ADMIN'}) : el('span')
+      ])
+      $('#userBadge').innerHTML = ''
+      $('#userBadge').appendChild(badge)
+
+      if(profile?.username){
+        $('#loginCard').classList.add('hidden')
+        $('#tabs').classList.remove('hidden')
+        $('#page-tavoli').classList.remove('hidden')
+        loadTables()
+        if(profile?.is_admin) $('#tabUtenti').classList.remove('hidden')
+      } else {
+        $('#loginCard').classList.remove('hidden')
+      }
+    }
+
+    async function handleLogin(){
+      const username = ($('#usernameInput').value||'').trim()
+      if(!username){ alert('Inserisci un username.'); return }
+      // Tenta insert profilo (policy richiede id = auth.uid())
+      const { error } = await supabase.from('profiles').insert({ id: session.user.id, username })
+      if(error){
+        // se già esiste con username uguale -> messaggio chiaro
+        if (error.code === '23505' || /duplicate/i.test(error.message)) {
+          alert('Username già in uso. Scegline un altro.')
+          return
+        }
+        console.error('Insert profile error', error)
+        alert('Errore creazione profilo. Controlla le policy RLS e le chiavi.')
+        return
+      }
+      await fetchProfile()
+      renderLogin()
+    }
+
+    // Click + Enter per login
+    $('#btnLogin').addEventListener('click', handleLogin)
+    $('#usernameInput').addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){ e.preventDefault(); handleLogin() }
+    })
+
+    // Crea tavolo
+    $('#btnCreateTable').addEventListener('click', async ()=>{
+      try{
+        const name = $('#tNome').value.trim()
+        const desc = $('#tDesc').value.trim()
+        const duration = parseInt($('#tDur').value||'0',10)
+        const seats = parseInt($('#tSeats').value||'0',10)
+        const compl = $('#tCompl').value
+        const d = $('#tDate').value
+        const t = $('#tTime').value
+        if(!name || !d || !t || duration<=0 || seats<=0){ alert('Compila tutti i campi.'); return }
+        const dt = new Date(`${d}T${t}:00`)
+        if(dt < new Date()){ alert('La data/ora deve essere nel futuro.'); return }
+        const { error } = await supabase.from('tables').insert({
+          name, description: desc, duration_minutes: duration, starts_at: dt.toISOString(), seats, complexity: compl
+        })
+        if(error) throw error
+        $('#tNome').value = ''; $('#tDesc').value=''
+        loadTables()
+      }catch(err){ console.error(err); alert('Errore creazione tavolo. Verifica RLS e trigger set_creator_id.'); }
+    })
+
+    // Carica tavoli
+    async function loadTables(){
+      const q = ($('#search').value||'').trim()
+      let query = supabase.from('tables_view').select('*').order('starts_at', { ascending: true })
+      if(q) query = query.ilike('name', `%${q}%`)
+      const { data, error } = await query
+      const wrap = $('#tablesList'); wrap.innerHTML=''
+      if(error){ console.error(error); wrap.appendChild(el('div',{class:'muted',html:'Errore nel caricamento tavoli (controlla viste/RLS).'})); return }
+      if(!data?.length){ wrap.appendChild(el('div',{class:'muted center',html:'Nessun tavolo trovato.'})); return }
+      data.forEach(row=> wrap.appendChild(renderTableTile(row)))
+    }
+
+    function renderTableTile(row){
+      const mine = row.creator_id === session.user.id
+      const canAdmin = !!profile?.is_admin
+      const img = row.image_url ? el('img',{src:row.image_url,alt:'immagine tavolo'}) : el('div',{class:'avatar',style:'width:84px;height:84px;font-size:28px'},['🎲'])
+      const title = el('div',{html:`<strong>${row.name}</strong><br><span class="muted">${fmtDateTime(row.starts_at)} • ${row.duration_minutes} min • ${row.seats} posti • <span class="pill">${row.complexity}</span></span>`})
+      const desc = el('div',{class:'muted',html: (row.description||'')})
+      const by = el('div',{class:'muted',html:`Creato da <b>${row.creator_name||'utente'}</b> • Prenotati: <b>${row.reserved}/${row.seats}</b>`})
+
+      const btnBook = el('button',{class:'btn'},[document.createTextNode('Prenota')])
+      btnBook.onclick = ()=> reserveSeat(row.id)
+
+      const btnUnbook = el('button',{class:'btn-ghost'},[document.createTextNode('Annulla')])
+      btnUnbook.onclick = ()=> unreserveSeat(row.id)
+
+      const btnDelMine = (mine||canAdmin) ? el('button',{class:'btn-ghost danger'},[document.createTextNode('Elimina')]) : null
+      if(btnDelMine) btnDelMine.onclick = ()=> deleteTable(row.id)
+
+      const adminEdit = (canAdmin) ? el('button',{class:'btn-ghost'},[document.createTextNode('Modifica/Immagine')]) : null
+      if(adminEdit) adminEdit.onclick = ()=> adminEditTable(row)
+
+      const actions = el('div',{class:'row'},[btnBook, btnUnbook, btnDelMine||el('span'), adminEdit||el('span')])
+
+      return el('div',{class:'tile'},[
+        img,
+        el('div',{class:'grow'},[title, desc, by, el('div',{class:'divider'}), actions])
+      ])
+    }
+
+    async function reserveSeat(tableId){
+      const { error } = await supabase.from('reservations').insert({ table_id: tableId })
+      if(error){ alert(error.message||'Errore prenotazione (controlla RLS/trigger).'); return }
+      loadTables(); loadReservations()
+    }
+    async function unreserveSeat(tableId){
+      const { error } = await supabase.from('reservations').delete().match({ table_id: tableId, user_id: session.user.id })
+      if(error){ alert('Errore annullamento'); return }
+      loadTables(); loadReservations()
+    }
+    async function deleteTable(tableId){
+      if(!confirm('Eliminare il tavolo? Questa azione rimuove anche le prenotazioni.')) return
+      const { error } = await supabase.from('tables').delete().eq('id', tableId)
+      if(error){ alert('Operazione non autorizzata o errore.'); return }
+      loadTables(); loadReservations()
+    }
+
+    async function adminEditTable(row){
+      const name = prompt('Nome', row.name); if(name===null) return
+      const description = prompt('Descrizione', row.description||''); if(description===null) return
+      const { error } = await supabase.from('tables').update({ name, description }).eq('id', row.id)
+      if(error){ alert('Errore salvataggio.'); return }
+      if(confirm('Vuoi caricare/aggiornare un\\'immagine?')){
+        const input = document.createElement('input'); input.type='file'; input.accept='image/*'
+        input.onchange = async ()=>{
+          const file = input.files[0]; if(!file) return
+          const path = `tables/${row.id}-${Date.now()}.jpg`
+          const { error: upErr } = await supabase.storage.from('images').upload(path, file, { upsert:true, contentType:file.type })
+          if(upErr){ alert('Upload fallito.'); return }
+          const { data:pub } = supabase.storage.from('images').getPublicUrl(path)
+          await supabase.from('tables').update({ image_url: pub.publicUrl }).eq('id', row.id)
+          loadTables()
+        }
+        input.click()
+      } else {
+        loadTables()
+      }
+    }
+
+    // Prenotazioni dell'utente
+    async function loadReservations(){
+      const { data, error } = await supabase.from('my_reservations_view').select('*').order('starts_at',{ascending:true})
+      const wrap = $('#resList'); wrap.innerHTML=''
+      if(error){ console.error(error); wrap.appendChild(el('div',{class:'muted',html:'Errore nel caricamento prenotazioni (controlla viste/RLS).'})); return }
+      if(!data?.length){ wrap.appendChild(el('div',{class:'muted center',html:'Nessuna prenotazione.'})); return }
+      data.forEach(r=>{
+        const node = el('div',{class:'tile'},[
+          el('div',{class:'grow', html:`<strong>${r.name}</strong><br><span class="muted">${fmtDateTime(r.starts_at)} • ${r.duration_minutes} min</span>`}),
+          el('button',{class:'btn-ghost'},[document.createTextNode('Elimina')])
+        ])
+        node.querySelector('button').onclick = async ()=>{
+          const { error } = await supabase.from('reservations').delete().eq('id', r.reservation_id)
+          if(error){ alert('Errore.'); return }
+          loadReservations(); loadTables()
+        }
+        wrap.appendChild(node)
+      })
+    }
+
+    // Utenti (solo admin)
+    async function loadUsers(){
+      const { data, error } = await supabase.from('profiles_admin_view').select('*').order('created_at',{ascending:false})
+      const wrap = $('#usersList'); wrap.innerHTML=''
+      if(error){ console.error(error); wrap.appendChild(el('div',{class:'muted',html:'Errore nel caricamento utenti (solo admin).'})); return }
+      data.forEach(u=>{
+        const node = el('div',{class:'tile'},[
+          el('div',{class:'avatar'},[document.createTextNode((u.username||'??').slice(0,2).toUpperCase())]),
+          el('div',{class:'grow', html:`<strong>${u.username||'(senza nome)'}</strong><br><span class="muted">${u.id}</span>`}),
+          el('button',{class:'btn-ghost'},[document.createTextNode(u.is_admin?'Rimuovi admin':'Rendi admin')]),
+          el('button',{class:'btn-ghost danger'},[document.createTextNode('Elimina utente')])
+        ])
+        node.children[2].onclick = async ()=>{
+          const { error } = await supabase.rpc('toggle_admin', { p_user_id: u.id })
+          if(error){ alert('Operazione non autorizzata.'); return }
+          loadUsers()
+        }
+        node.children[3].onclick = async ()=>{
+          if(!confirm('Eliminare utente e dati associati?')) return
+          const { error } = await supabase.rpc('admin_delete_user', { p_user_id: u.id })
+          if(error){ alert('Operazione non autorizzata.'); return }
+          loadUsers(); loadTables(); loadReservations()
+        }
+        wrap.appendChild(node)
+      })
+    }
+
+    // Ricerca
+    $('#search').addEventListener('input', ()=> loadTables())
+
+    // Avvio
+    ensureAuth()
   </script>
 </body>
 </html>
