@@ -273,25 +273,35 @@
     }
 
     async function handleLogin(){
-  const username = (document.getElementById('usernameInput').value || '').trim();
+  const input = document.getElementById('usernameInput');
+  const username = (input?.value || '').trim();
   if (!username) { alert('Inserisci un username.'); return; }
 
-  // Make sure session exists
+  // 1) Make sure we actually have a session
+  //    (do NOT rely on any global "session" variable)
   let { data: { session: s } } = await supabase.auth.getSession();
   if (!s) {
     const { data, error } = await supabase.auth.signInAnonymously();
     if (error) { alert('Errore autenticazione'); console.error(error); return; }
     s = data.session;
   }
-  window.session = s;
 
-  const { error } = await supabase.from('profiles').insert({ username });
+  // 2) Insert profile WITHOUT id (DB trigger will set id = auth.uid())
+  console.log('[handleLogin] inserting profile with username only');
+  const { error } = await supabase
+  .from('profiles')
+  .upsert({ id: s.user.id, username }, { onConflict: 'id' });
+
   if (error) {
-    if (error.code === '23505' || /duplicate/i.test(error.message)) { alert('Username già in uso.'); return; }
+    if (error.code === '23505' || /duplicate/i.test(error.message)) {
+      alert('Username già in uso. Scegline un altro.');
+      return;
+    }
     alert(error.message || 'Errore creazione profilo');
     console.error(error);
     return;
   }
+
   await fetchProfile();
   if (typeof refreshAdminFlag === 'function') await refreshAdminFlag();
   renderLogin();
