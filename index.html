@@ -277,8 +277,7 @@
   const username = (input?.value || '').trim();
   if (!username) { alert('Inserisci un username.'); return; }
 
-  // 1) Make sure we actually have a session
-  //    (do NOT rely on any global "session" variable)
+  // Ensure there is an auth session for this browser
   let { data: { session: s } } = await supabase.auth.getSession();
   if (!s) {
     const { data, error } = await supabase.auth.signInAnonymously();
@@ -286,19 +285,21 @@
     s = data.session;
   }
 
-  // 2) Insert profile WITHOUT id (DB trigger will set id = auth.uid())
-  console.log('[handleLogin] inserting profile with username only');
+  // UPSERT by id so we don't conflict if the row already exists
   const { error } = await supabase
-  .from('profiles')
-  .upsert({ id: s.user.id, username }, { onConflict: 'id' });
+    .from('profiles')
+    .upsert(
+      { id: s.user.id, username },
+      { onConflict: 'id' } // merge-duplicates by primary key
+    );
 
   if (error) {
-    if (error.code === '23505' || /duplicate/i.test(error.message)) {
+    if (error.code === '23505') {           // unique violation (e.g., username already used)
       alert('Username già in uso. Scegline un altro.');
       return;
     }
-    alert(error.message || 'Errore creazione profilo');
-    console.error(error);
+    alert(error.message || 'Errore salvataggio profilo');
+    console.error('profiles upsert error', error);
     return;
   }
 
