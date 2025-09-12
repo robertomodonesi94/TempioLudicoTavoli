@@ -189,6 +189,7 @@
     	storageKey: 'tempio-ludico-auth'
   	}
 	});
+window.supabase = supabase; // <--- add this
 
     $('#privacyFrame').src = window.env.PRIVACY_URL || 'about:blank'
 
