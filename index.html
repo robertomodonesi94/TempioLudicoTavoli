@@ -268,27 +268,71 @@
     }
 
     async function loadTables(){
-      const q=($('#search').value||'').trim()
-      let query=supabase.from('tables_view').select('*').order('starts_at',{ascending:true})
-      if(q) query=query.ilike('name',`%${q}%`)
-      const {data,error}=await query
-      const wrap=$('#tablesList');wrap.innerHTML=''
-      if(error){wrap.appendChild(el('div',{class:'muted',html:'Errore caricamento tavoli'}));return}
-      if(!data?.length){wrap.appendChild(el('div',{class:'muted center',html:'Nessun tavolo'}));return}
-      data.forEach(r=>wrap.appendChild(renderTable(r)))
-    }
+  	const q = (document.getElementById('search')?.value || '').trim();
+  	let query = supabase.from('tables_view').select('*').order('starts_at', { ascending: true });
+  	if (q) query = query.ilike('name', `%${q}%`);
 
-    function renderTable(r){
-      const mine=r.creator_id===session.user.id
-      const canAdmin=!!profile?.is_admin
-      const img=r.image_url?el('img',{src:r.image_url}):el('div',{class:'avatar',style:'width:84px;height:84px;font-size:28px'},['🎲'])
-      const title=el('div',{html:`<strong>${r.name}</strong><br><span class="muted">${fmtDateTime(r.starts_at)} • ${r.duration_minutes} min • ${r.seats} posti • <span class="pill">${r.complexity}</span>`})
-      const by=el('div',{class:'muted',html:`Creato da <b>${r.creator_name||'utente'}</b> • Prenotati: <b>${r.reserved}/${r.seats}</b>`})
-      const btnBook=el('button',{class:'btn',onclick:()=>reserve(r.id)},[document.createTextNode('Prenota')])
-      const btnUnbook=el('button',{class:'btn-ghost',onclick:()=>unreserve(r.id)},[document.createTextNode('Annulla')])
-      const btnDel=(mine||canAdmin)?el('button',{class:'btn-ghost danger',onclick:()=>delTable(r.id)},[document.createTextNode('Elimina')]):null
-      return el('div',{class:'tile'},[img,el('div',{class:'grow'},[title,by,el('div',{class:'divider'}),el('div',{class:'row'},[btnBook,btnUnbook,btnDel||el('span')])])])
-    }
+  	const { data, error } = await query;
+  	const wrap = document.getElementById('tablesList');
+  	if (!wrap) { console.warn('#tablesList non trovato'); return; }
+
+  	wrap.innerHTML = '';
+  	if (error) {
+    		console.error(error);
+    		wrap.innerHTML = '<div class="muted">Errore nel caricamento tavoli</div>';
+    		return;
+  	}
+  	if (!data?.length) {
+    		wrap.innerHTML = '<div class="muted center">Nessun tavolo trovato.</div>';
+    		return;
+  	}
+
+  	data.forEach(row => wrap.appendChild(renderTableTile(row)));
+	}
+
+    
+function renderTable(row){
+  const mine = row.creator_id === (session?.user?.id);
+  const canAdmin = (typeof isAdmin !== 'undefined') ? isAdmin : !!(profile && profile.is_admin);
+
+  const img = row.image_url
+    ? el('img', { src: row.image_url, alt: 'immagine tavolo' })
+    : el('div', { class:'avatar', style:'width:84px;height:84px;font-size:28px' }, ['🎲']);
+
+  const title = el('div', { html:
+    `<strong>${row.name}</strong><br>
+     <span class="muted">
+       ${new Date(row.starts_at).toLocaleString('it-IT')}
+       • ${row.duration_minutes} min
+       • ${row.seats} posti
+       • <span class="pill">${row.complexity}</span>
+     </span>`
+  });
+
+  const desc = row.description
+    ? el('div', { class:'muted', html: row.description })
+    : el('div');
+
+  const by = el('div', { class:'muted', html:
+    `Creato da <b>${row.creator_name || 'utente'}</b> • Prenotati: <b>${row.reserved}/${row.seats}</b>`
+  });
+
+  const btnBook    = el('button', { class:'btn',       onclick:()=>reserveSeat(row.id) }, [document.createTextNode('Prenota')]);
+  const btnUnbook  = el('button', { class:'btn-ghost', onclick:()=>unreserveSeat(row.id) }, [document.createTextNode('Annulla')]);
+  const btnDelete  = (mine || canAdmin)
+                     ? el('button', { class:'btn-ghost danger', onclick:()=>deleteTable(row.id) }, [document.createTextNode('Elimina')])
+                     : null;
+  const btnEditImg = canAdmin
+                     ? el('button', { class:'btn-ghost', onclick:()=>adminEditTable(row) }, [document.createTextNode('Modifica/Immagine')])
+                     : null;
+
+  const actions = el('div', { class:'row' }, [btnBook, btnUnbook, btnDelete || el('span'), btnEditImg || el('span')]);
+
+  return el('div', { class:'tile' }, [
+    img,
+    el('div', { class:'grow' }, [title, desc, by, el('div', { class:'divider' }), actions])
+  ]);
+}
 
     async function reserve(id){await supabase.from('reservations').insert({table_id:id});loadTables();loadReservations()}
     async function unreserve(id){await supabase.from('reservations').delete().match({table_id:id,user_id:session.user.id});loadTables();loadReservations()}
