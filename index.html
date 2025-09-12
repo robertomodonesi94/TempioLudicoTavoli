@@ -371,6 +371,88 @@ function renderTableTile(row){
       })
     }
 
+    // ----- Prenotazioni tavoli -----
+
+async function reserveSeat(tableId){
+  const { error } = await supabase.from('reservations').insert({ table_id: tableId });
+  if (error) {
+    alert(error.message || 'Errore prenotazione (controlla RLS/trigger).');
+    console.error(error);
+    return;
+  }
+  loadTables();
+  loadReservations();
+}
+
+async function unreserveSeat(tableId){
+  const { error } = await supabase
+    .from('reservations')
+    .delete()
+    .match({ table_id: tableId, user_id: session.user.id });
+  if (error) {
+    alert('Errore annullamento prenotazione');
+    console.error(error);
+    return;
+  }
+  loadTables();
+  loadReservations();
+}
+
+async function deleteTable(id){
+  if (!confirm('Eliminare il tavolo? Questa azione rimuove anche le prenotazioni.')) return;
+  const { error } = await supabase.from('tables').delete().eq('id', id);
+  if (error) {
+    alert('Operazione non autorizzata o errore.');
+    console.error(error);
+    return;
+  }
+  loadTables();
+  loadReservations();
+}
+
+async function adminEditTable(row){
+  const name = prompt('Nome', row.name);
+  if (name === null) return;
+
+  const description = prompt('Descrizione', row.description || '');
+  if (description === null) return;
+
+  const { error } = await supabase.from('tables').update({ name, description }).eq('id', row.id);
+  if (error) {
+    alert('Errore salvataggio tavolo.');
+    console.error(error);
+    return;
+  }
+
+  // Immagine opzionale (solo admin)
+  if (confirm('Vuoi caricare/aggiornare un\'immagine per questo tavolo?')) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+      const file = input.files[0];
+      if (!file) return;
+      const path = `tables/${row.id}-${Date.now()}.jpg`;
+      const { error: upErr } = await supabase.storage.from('images').upload(path, file, {
+        upsert: true,
+        contentType: file.type
+      });
+      if (upErr) {
+        alert('Upload immagine fallito.');
+        console.error(upErr);
+        return;
+      }
+      const { data: pub } = supabase.storage.from('images').getPublicUrl(path);
+      await supabase.from('tables').update({ image_url: pub.publicUrl }).eq('id', row.id);
+      loadTables();
+    };
+    input.click();
+  } else {
+    loadTables();
+  }
+}
+
+
     // Search
     $('#search').addEventListener('input',()=>loadTables())
 
