@@ -296,7 +296,7 @@
 	}
 
     
-function renderTable(row){
+function renderTableTile(row){
   const mine = row.creator_id === (session?.user?.id);
   const canAdmin = (typeof isAdmin !== 'undefined') ? isAdmin : !!(profile && profile.is_admin);
 
