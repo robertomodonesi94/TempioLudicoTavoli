@@ -339,12 +339,6 @@ function renderTableTile(row){
   ]);
 }
 
-    async function reserve(id){await supabase.from('reservations').insert({table_id:id});loadTables();loadReservations()}
-    async function unreserve(id){await supabase.from('reservations').delete().match({table_id:id,user_id:session.user.id});loadTables();loadReservations()}
-    async function deleteTable(id){if(!confirm('Eliminare tavolo?'))return;await supabase.from('tables').delete().eq('id',id);loadTables();loadReservations
-
-()}
-
     // Prenotazioni
     async function loadReservations(){
       const {data}=await supabase.from('my_reservations_view').select('*').order('starts_at',{ascending:true})
