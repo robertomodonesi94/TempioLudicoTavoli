@@ -182,7 +182,13 @@
       throw new Error('Missing env config')
     }
 
-    const supabase = createClient(window.env.SUPABASE_URL, window.env.SUPABASE_ANON_KEY)
+    const supabase = createClient(window.env.SUPABASE_URL, window.env.SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    storage: window.localStorage,   // make it explicit
+    storageKey: 'tempio-ludico-auth' // custom key so it won't clash
+  }
+});
     $('#privacyFrame').src = window.env.PRIVACY_URL || 'about:blank'
 
     // Stato globale
@@ -205,17 +211,48 @@
     })
 
     // Autenticazione
-    async function ensureAuth(){
-      const { data: { session: s } } = await supabase.auth.getSession()
-      session = s
-      if (!session) {
-        const { data, error } = await supabase.auth.signInAnonymously()
-        if (error) { alert('Errore auth anonima'); console.error(error); return }
-        session = data.session
+    async function ensureAuth() {
+  // 1) Do we already have a session restored from localStorage?
+  let { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    window.session = session;
+    await fetchProfile();
+    if (typeof refreshAdminFlag === 'function') await refreshAdminFlag();
+    renderLogin();
+    return;
+  }
+
+  // 2) Wait for Supabase to emit the INITIAL_SESSION event (happens on page load)
+  await new Promise(async (resolve) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, sess) => {
+      if (event === 'INITIAL_SESSION') {
+        subscription.unsubscribe();
+        if (sess) {
+          // Existing session found — use it
+          window.session = sess;
+          await fetchProfile();
+          if (typeof refreshAdminFlag === 'function') await refreshAdminFlag();
+          renderLogin();
+          resolve();
+        } else {
+          // No session at all — create one anonymously ONCE
+          const { data, error } = await supabase.auth.signInAnonymously();
+          if (error) {
+            console.error('Anon sign-in error', error);
+            alert('Errore autenticazione anonima');
+            resolve();
+            return;
+          }
+          window.session = data.session;
+          await fetchProfile();
+          if (typeof refreshAdminFlag === 'function') await refreshAdminFlag();
+          renderLogin();
+          resolve();
+        }
       }
-      await fetchProfile()
-      renderLogin()
-    }
+    });
+  });
+}
 
     async function fetchProfile(){
       const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
