@@ -322,8 +322,8 @@ function renderTableTile(row){
     `Creato da <b>${row.creator_name || 'utente'}</b> • Prenotati: <b>${row.reserved}/${row.seats}</b>`
   });
 
-  const btnBook    = el('button', { class:'btn',       onclick:()=>reserveSeat(row.id) }, [document.createTextNode('Prenota')]);
-  const btnUnbook  = el('button', { class:'btn-ghost', onclick:()=>unreserveSeat(row.id) }, [document.createTextNode('Annulla')]);
+  const btnBook    = el('button', { class:'btn',       onclick:()=>reserve(row.id) }, [document.createTextNode('Prenota')]);
+  const btnUnbook  = el('button', { class:'btn-ghost', onclick:()=>unreserve(row.id) }, [document.createTextNode('Annulla')]);
   const btnDelete  = (mine || canAdmin)
                      ? el('button', { class:'btn-ghost danger', onclick:()=>deleteTable(row.id) }, [document.createTextNode('Elimina')])
                      : null;
@@ -344,10 +344,6 @@ function renderTableTile(row){
     async function deleteTable(id){if(!confirm('Eliminare tavolo?'))return;await supabase.from('tables').delete().eq('id',id);loadTables();loadReservations
 
 ()}
-
-    // aliases so the buttons work
-	const reserveSeat = (tableId) => reserve(tableId);
-	const unreserveSeat = (tableId) => unreserve(tableId);
 
     // Prenotazioni
     async function loadReservations(){
@@ -379,7 +375,7 @@ function renderTableTile(row){
 
     // ----- Prenotazioni tavoli -----
 
-async function reserveSeat(tableId){
+async function reserve(tableId){
   const { error } = await supabase.from('reservations').insert({ table_id: tableId });
   if (error) {
     alert(error.message || 'Errore prenotazione (controlla RLS/trigger).');
@@ -390,7 +386,7 @@ async function reserveSeat(tableId){
   loadReservations();
 }
 
-async function unreserveSeat(tableId){
+async function unreserve(tableId){
   const { error } = await supabase
     .from('reservations')
     .delete()
