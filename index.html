@@ -131,18 +131,23 @@
     </section>
 
     <footer>
-      <p>Debug rapido: apri la console e prova <code class="inline">await supabase.auth.getUser()</code>.</p>
+      <p>Debug rapido: apri la console e prova <code class="inline">await window.supabase.auth.getUser()</code>.</p>
     </footer>
   </div>
 
   <!-- 1) Public environment (must exist and define window.SUPABASE_URL / window.SUPABASE_ANON_KEY) -->
-  <script src="/env.js"></script>
+  <script src="/env.js" onerror="console.error('env.js failed to load - check path')"></script>
 
   <!-- 2) Supabase JS SDK v2 (UMD) -->
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
   <!-- 3) App logic -->
   <script>
+    // ---- Normalize the factory and badge checks ----
+    // The UMD exposes a global `supabase` (factory). Before creating a client, `window.supabase` is undefined.
+    // Keep a reference to the factory as `window.supabaseFactory`.
+    window.supabaseFactory = window.supabaseFactory || window.supabase || (typeof supabase !== 'undefined' ? supabase : undefined);
+
     (function ensureEnvBadge(){
       const ok = typeof window.SUPABASE_URL === 'string' && typeof window.SUPABASE_ANON_KEY === 'string';
       document.getElementById('env-status').textContent = ok ? 'OK' : 'manca';
@@ -150,29 +155,43 @@
     })();
 
     (function ensureSdkBadge(){
-      const ok = typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function';
-      // The UMD exposes global `supabase` factory; we still create our client below.
+      const ok = typeof window.supabaseFactory === 'object' && typeof window.supabaseFactory.createClient === 'function';
       document.getElementById('sdk-status').textContent = ok ? 'OK' : 'manca';
       document.getElementById('sdk-badge').style.borderColor = ok ? '#2c6fb6' : '#7a2e2e';
     })();
 
-    // 3a) Create a global client instance
-    window.supabase = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+    // ---- Hard guard for env presence ----
+    if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+      throw new Error('Missing SUPABASE_URL / SUPABASE_ANON_KEY: ensure /env.js defines them on window.*');
+    }
+    if (!window.supabaseFactory || typeof window.supabaseFactory.createClient !== 'function') {
+      throw new Error('Supabase SDK not loaded: check the <script src="https://unpkg.com/@supabase/supabase-js@2"> tag.');
+    }
+
+    // ---- Singleton client creation (avoid duplicates) ----
+    if (!window.supabase) {
+      window.supabase = window.supabaseFactory.createClient(
+        window.SUPABASE_URL,
+        window.SUPABASE_ANON_KEY,
+        { auth: { storageKey: 'sb-tempioludico', autoRefreshToken: true, persistSession: true, detectSessionInUrl: true } }
+      );
+      console.log('Supabase client initialized (singleton).');
+    }
 
     // --- Helpers ---
     const $ = (id) => document.getElementById(id);
     const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
 
     async function ensureSession() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await window.supabase.auth.getSession();
       if (!session) {
-        const { error } = await supabase.auth.signInAnonymously();
+        const { error } = await window.supabase.auth.signInAnonymously();
         if (error) throw error;
       }
     }
 
     async function refreshAuthUI() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await window.supabase.auth.getUser();
       const el = $('whoami');
       const authStatus = $('auth-status');
       if (!user) {
@@ -186,7 +205,11 @@
       el.textContent = `Utente: ${user.id}`;
 
       // Fetch profile to display username and admin
-      const { data, error } = await supabase.from('profiles').select('username, is_admin').eq('user_id', user.id).maybeSingle();
+      const { data, error } = await window.supabase
+        .from('profiles')
+        .select('username, is_admin')
+        .eq('user_id', user.id)
+        .maybeSingle();
       if (!error && data) {
         if (data.username) $('username').value = data.username;
         $('admin-flag').textContent = `Ruolo: ${data.is_admin ? 'admin' : 'utente'}`;
@@ -209,18 +232,18 @@
     }
 
     async function saveUsername() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await window.supabase.auth.getUser();
       if (!user) return showError('auth-log', 'Nessuna sessione utente.');
       const username = $('username').value.trim();
       if (!/^[a-zA-Z0-9_-]{3,30}$/.test(username)) return showError('auth-log', 'Username non valido (3–30, alfanumerico/_-).');
-      const { error } = await supabase.from('profiles').upsert({ user_id: user.id, username }, { onConflict: 'user_id' });
+      const { error } = await window.supabase.from('profiles').upsert({ user_id: user.id, username }, { onConflict: 'user_id' });
       if (error) return showError('auth-log', error);
       showOk('auth-log', 'Username salvato.');
       refreshAuthUI();
     }
 
     async function createTable() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await window.supabase.auth.getUser();
       if (!user) return showError('create-log', 'Nessuna sessione utente.');
 
       const title = $('title').value.trim();
@@ -233,7 +256,7 @@
       if (maxSeats < 1 || maxSeats > 20) return showError('create-log', 'Posti 1–20.');
 
       const payload = { created_by: user.id, title, description, complexity, max_seats: maxSeats, starts_at: startsAt };
-      const { data, error } = await supabase.from('tables').insert(payload).select().single();
+      const { data, error } = await window.supabase.from('tables').insert(payload).select().single();
       if (error) return showError('create-log', error);
       showOk('create-log', 'Tavolo creato.');
       $('title').value = ''; $('desc').value = ''; $('complexity').value = ''; $('seats').value = '4'; $('start').value='';
@@ -242,7 +265,7 @@
 
     async function fetchReservationsCountByTable(tableIds) {
       if (!tableIds.length) return {};
-      const { data, error } = await supabase.from('reservations').select('table_id').in('table_id', tableIds);
+      const { data, error } = await window.supabase.from('reservations').select('table_id').in('table_id', tableIds);
       if (error) return {};
       const counts = {};
       for (const r of data) counts[r.table_id] = (counts[r.table_id] || 0) + 1;
@@ -252,7 +275,7 @@
     async function loadTables() {
       const list = $('tables');
       list.innerHTML = '';
-      const { data: tables, error } = await supabase.from('tables')
+      const { data: tables, error } = await window.supabase.from('tables')
         .select('id,title,description,complexity,max_seats,starts_at,created_at,created_by')
         .order('created_at', { ascending: false })
         .limit(100);
@@ -261,7 +284,7 @@
 
       const ids = tables.map(t => t.id);
       const counts = await fetchReservationsCountByTable(ids);
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await window.supabase.auth.getUser();
 
       for (const t of tables) {
         const taken = counts[t.id] || 0;
@@ -282,7 +305,6 @@
             <button data-act="cancel" class="btn-danger">Annulla mia prenotazione</button>
           </div>
         `;
-        // Wire buttons
         item.querySelector('[data-act="reserve"]').onclick = async () => {
           await reserveSeat(t.id);
           await loadTables();
@@ -290,7 +312,7 @@
         };
         item.querySelector('[data-act="cancel"]').onclick = async () => {
           if (!user) return;
-          await supabase.from('reservations').delete().eq('table_id', t.id).eq('user_id', user.id);
+          await window.supabase.from('reservations').delete().eq('table_id', t.id).eq('user_id', user.id);
           await loadTables();
           await loadMine();
         };
@@ -299,17 +321,16 @@
     }
 
     async function loadMine() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await window.supabase.auth.getUser();
       const host = $('mine');
       host.innerHTML = '';
       if (!user) return;
-      // My reservations joined with tables (two calls to keep it simple)
-      const { data: myRes, error } = await supabase.from('reservations').select('table_id, reserved_at').eq('user_id', user.id).order('reserved_at', { ascending:false });
+      const { data: myRes, error } = await window.supabase.from('reservations').select('table_id, reserved_at').eq('user_id', user.id).order('reserved_at', { ascending:false });
       if (error) return;
 
       const ids = myRes.map(r => r.table_id);
       if (!ids.length) { host.innerHTML = '<div class="muted">Nessuna prenotazione.</div>'; return; }
-      const { data: tables } = await supabase.from('tables').select('id,title,starts_at').in('id', ids);
+      const { data: tables } = await window.supabase.from('tables').select('id,title,starts_at').in('id', ids);
 
       for (const r of myRes) {
         const t = tables.find(x => x.id === r.table_id);
@@ -326,7 +347,7 @@
           </div>
         `;
         div.querySelector('button').onclick = async () => {
-          await supabase.from('reservations').delete().eq('table_id', r.table_id).eq('user_id', user.id);
+          await window.supabase.from('reservations').delete().eq('table_id', r.table_id).eq('user_id', user.id);
           await loadTables(); await loadMine();
         };
         host.appendChild(div);
@@ -334,17 +355,15 @@
     }
 
     async function reserveSeat(tableId) {
-      // Prefer atomic RPC if present
       const tryRpc = async () => {
         try {
-          const { data, error } = await supabase.rpc('reserve_seat', { p_table_id: tableId });
+          const { data, error } = await window.supabase.rpc('reserve_seat', { p_table_id: tableId });
           if (error) throw error;
           return data;
         } catch (e) {
-          // Fall back to direct insert (may fail if RLS/constraints disallow)
-          const { data: { user } } = await supabase.auth.getUser();
+          const { data: { user } } = await window.supabase.auth.getUser();
           if (!user) throw e;
-          const { error: e2 } = await supabase.from('reservations').insert({ table_id: tableId, user_id: user.id });
+          const { error: e2 } = await window.supabase.from('reservations').insert({ table_id: tableId, user_id: user.id });
           if (e2) throw e2;
           return true;
         }
@@ -359,7 +378,7 @@
 
     async function promoteViaRpc() {
       try {
-        const { error } = await supabase.rpc('promote_me_admin');
+        const { error } = await window.supabase.rpc('promote_me_admin');
         if (error) throw error;
         alert('Richiesta di promozione inviata. Ricarica la pagina.');
         await refreshAuthUI();
@@ -371,16 +390,16 @@
     // --- Event bindings ---
     $('btn-anon').onclick = async () => {
       try {
-        await supabase.auth.signInAnonymously();
+        await window.supabase.auth.signInAnonymously();
         await refreshAuthUI(); await loadTables(); await loadMine();
       } catch (e) { showError('auth-log', e); }
     };
-    $('btn-signout').onclick = async () => { await supabase.auth.signOut(); await refreshAuthUI(); $('tables').innerHTML = ''; $('mine').innerHTML = ''; };
+    $('btn-signout').onclick = async () => { await window.supabase.auth.signOut(); await refreshAuthUI(); $('tables').innerHTML = ''; $('mine').innerHTML = ''; };
     $('btn-save-username').onclick = () => saveUsername();
     $('btn-create').onclick = () => createTable();
     $('btn-refresh').onclick = async () => { await loadTables(); await loadMine(); };
     $('btn-copy-id').onclick = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await window.supabase.auth.getUser();
       if (!user) return;
       await navigator.clipboard.writeText(user.id);
       alert('User ID copiato negli appunti:\n' + user.id);
