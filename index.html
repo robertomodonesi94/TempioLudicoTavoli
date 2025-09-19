@@ -3,591 +3,401 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tempio Ludico tavoli</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet" />
-
-  <!-- 🌟 CONFIGURAZIONE APP -->
-  <script>
-    window.env = {
-      SUPABASE_URL: "https://ekijcvhrvkpgncfyemwu.supabase.co",
-      SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVraWpjdmhydmtwZ25jZnllbXd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NDQyMDMsImV4cCI6MjA3MzIyMDIwM30.4zSq2FwHbwT13OcXmNbMI6beFaKq0r6j6pmzqlCV1xk",
-      PRIVACY_URL: "/privacy.pdf"
-    };
-  </script>
-
-  <!-- Supabase client -->
-  <script type="module" src="https://esm.sh/@supabase/supabase-js@2"></script>
-
+  <title>Tempio Ludico Tavoli</title>
+  <meta name="description" content="Crea tavoli da gioco e prenota un posto." />
   <style>
-    :root{--red:#d61e2b;--red-600:#b31620;--white:#fff;--bg:#fff6f6;--ink:#1a1a1a;--muted:#777}
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{margin:0;font-family:Nunito,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
-    header{position:sticky;top:0;background:linear-gradient(90deg,var(--red),#ff4d5a);color:var(--white);padding:14px 16px;z-index:10;box-shadow:0 6px 16px rgba(0,0,0,.12)}
-    .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px}
-    .heart{width:26px;height:26px;border-radius:8px;background:var(--white);display:grid;place-items:center;color:var(--red);box-shadow:0 2px 6px rgba(0,0,0,.15)}
-    main{max-width:980px;margin:24px auto;padding:0 16px 80px}
-    .card{background:#fff;border:1px solid #f0d6d8;border-radius:18px;box-shadow:0 8px 24px rgba(214,30,43,.08);padding:16px}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
-    .grow{flex:1 1 240px}
-    input,select,button,textarea{font-family:inherit;font-size:15px}
-    input,select,textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #e7c2c5;background:#fff}
-    textarea{min-height:90px}
-    button{border:0;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer;transition:.15s transform,.15s opacity}
-    .btn{background:var(--red);color:#fff}
-    .btn:hover{transform:translateY(-1px);opacity:.95}
-    .btn-ghost{background:#fff;color:var(--red);border:1px solid #f0d6d8}
-    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
-    .tab{padding:8px 12px;border-radius:999px;border:1px solid #f0d6d8;background:#fff;color:var(--red);font-weight:700;cursor:pointer}
-    .tab.active{background:var(--red);color:#fff;border-color:var(--red)}
-    .list{display:grid;gap:12px}
-    .tile{display:flex;gap:14px;align-items:center;border:1px solid #f0d6d8;padding:12px;border-radius:14px;background:#fff}
-    .tile img{width:84px;height:84px;border-radius:12px;object-fit:cover;border:1px solid #eee}
-    .muted{color:var(--muted)}
-    .pill{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid #f0d6d8;background:#fff;color:#b31620;font-size:12px;font-weight:800}
-    .danger{color:#b31620}
-    .divider{height:1px;background:#f6dadd;margin:14px 0}
-    .footer{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #f0d6d8;padding:12px 16px;display:flex;justify-content:center}
-    .hint{font-size:13px;color:var(--muted)}
-    .right{margin-left:auto}
-    .hidden{display:none}
-    .center{text-align:center}
-    .avatar{width:28px;height:28px;border-radius:50%;background:#ffd7da;display:inline-grid;place-items:center;font-weight:800;color:var(--red)}
+    :root { --bg:#0b0f14; --card:#121821; --muted:#9fb0c9; --text:#e8eef6; --accent:#5fb3ff; --danger:#ff6b6b; --ok:#86efac; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji"; background: var(--bg); color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom: 24px; }
+    h1 { font-size: 22px; margin: 0; }
+    .badge { display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; background: #1b2532; color: var(--muted); border: 1px solid #223046; }
+    .grid { display:grid; grid-template-columns: 1fr; gap:16px; }
+    @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .card { background: var(--card); border: 1px solid #1a2433; border-radius: 12px; padding: 16px; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
+    .card h2 { margin-top:0; font-size: 16px; }
+    label { display:block; font-size: 13px; color: var(--muted); margin: 10px 0 6px; }
+    input, select, textarea { width: 100%; background: #0e141d; color: var(--text); border:1px solid #223046; border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+    textarea { min-height: 88px; resize: vertical; }
+    .row { display:flex; gap: 10px; }
+    .row > * { flex:1; }
+    button { background: #172233; color: var(--text); border: 1px solid #233248; border-radius: 10px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
+    button:hover { border-color: #31507b; }
+    .btn-accent { background: #143250; border-color:#2c6fb6; }
+    .btn-danger { background: #3b1b1b; border-color:#7a2e2e; }
+    .muted { color: var(--muted); }
+    .ok { color: var(--ok); }
+    .err { color: var(--danger); }
+    .list { display:flex; flex-direction: column; gap:10px; margin-top: 10px; }
+    .item { border:1px solid #203049; border-radius: 10px; padding: 12px; background:#0e141d; }
+    .item h3 { margin: 0 0 8px 0; font-size: 15px; }
+    .item .meta { font-size: 12px; color: var(--muted); display:flex; gap:10px; flex-wrap:wrap; }
+    .item .actions { margin-top: 10px; display:flex; gap:10px; flex-wrap:wrap; }
+    code.inline { background: #0c121a; border: 1px solid #1c2839; border-radius: 6px; padding: 2px 6px; }
+    footer { margin-top: 28px; font-size: 12px; color: var(--muted); }
   </style>
 </head>
 <body>
-  <header>
-  <div class="brand">
-    <img src="LogoTempioLudicoNoBackground.PNG" alt="Logo Tempio Ludico" style="height:36px; width:auto; border-radius:8px;">
-    <div>Tempio Ludico tavoli</div>
-    <div class="right" id="userBadge"></div>
-  </div>
-</header>
+  <div class="container">
+    <header>
+      <h1>Tempio Ludico Tavoli</h1>
+      <div>
+        <span id="env-badge" class="badge">env.js: <span id="env-status">…</span></span>
+        <span id="sdk-badge" class="badge">supabase-js: <span id="sdk-status">…</span></span>
+        <span id="auth-badge" class="badge">auth: <span id="auth-status">…</span></span>
+      </div>
+    </header>
 
+    <div class="grid">
+      <!-- Auth & Profile -->
+      <section class="card">
+        <h2>Accesso & Profilo</h2>
+        <div class="muted" id="whoami">Utente: —</div>
+        <div class="row" style="margin-top:10px;">
+          <button id="btn-anon" class="btn-accent">Accedi anonimamente</button>
+          <button id="btn-signout">Esci</button>
+        </div>
 
-  <main>
-    <!-- Login -->
-    <section id="loginCard" class="card">
-      <h2>Benvenuto! 👋</h2>
-      <p class="muted">Accedi scegliendo un <strong>username univoco</strong> (senza email né password).</p>
+        <label for="username">Username (univoco)</label>
+        <div class="row">
+          <input id="username" placeholder="es. gamer_ale" />
+          <button id="btn-save-username">Salva</button>
+        </div>
+        <div class="muted" id="admin-flag">Ruolo: utente</div>
+
+        <div style="margin-top:10px;">
+          <button id="btn-copy-id">Copia il mio user_id</button>
+          <!-- Optional: will work only if you created the RPC `promote_me_admin` -->
+          <button id="btn-promote" title="Richiede l'RPC promote_me_admin" class="btn-accent">Prova promozione admin (RPC)</button>
+        </div>
+
+        <p class="muted" style="margin-top:12px;">
+          Nota: per promuoverti admin via SQL, usa l’UUID corrente mostrato sopra e la query che ti ho fornito in precedenza.
+        </p>
+        <div id="auth-log" class="muted"></div>
+      </section>
+
+      <!-- Create Table -->
+      <section class="card">
+        <h2>Crea un tavolo</h2>
+        <label for="title">Titolo</label>
+        <input id="title" placeholder="Nome del gioco / sessione" />
+
+        <label for="desc">Descrizione</label>
+        <textarea id="desc" placeholder="Dettagli, house rules, ecc."></textarea>
+
+        <div class="row">
+          <div>
+            <label for="complexity">Difficoltà</label>
+            <select id="complexity">
+              <option value="">—</option>
+              <option value="molto semplice">Molto semplice</option>
+              <option value="semplice">Semplice</option>
+              <option value="medio">Medio</option>
+              <option value="complesso">Complesso</option>
+              <option value="molto complesso">Molto complesso</option>
+            </select>
+          </div>
+          <div>
+            <label for="seats">Posti massimi</label>
+            <input id="seats" type="number" min="1" max="20" value="4" />
+          </div>
+        </div>
+
+        <label for="start">Inizio (opzionale)</label>
+        <input id="start" type="datetime-local" />
+
+        <div style="margin-top:10px;">
+          <button id="btn-create" class="btn-accent">Crea tavolo</button>
+        </div>
+        <div id="create-log" class="muted"></div>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:16px;">
+      <h2>Elenco tavoli</h2>
       <div class="row">
-        <input class="grow" id="usernameInput" placeholder="Scegli il tuo username" maxlength="28" />
-        <button class="btn" id="btnLogin">Entra</button>
+        <button id="btn-refresh">Aggiorna elenco</button>
       </div>
-      <p class="hint">Se esiste già, scegli un altro nome. Gli admin sono gestiti dal server.</p>
+      <div id="tables" class="list"></div>
+      <div id="tables-log" class="muted"></div>
     </section>
 
-    <!-- Tabs -->
-    <nav class="tabs hidden" id="tabs">
-      <button class="tab active" data-tab="tavoli">Tavoli</button>
-      <button class="tab" data-tab="prenotazioni">Prenotazioni</button>
-      <button class="tab" data-tab="privacy">Privacy</button>
-      <button class="tab hidden" data-tab="utenti" id="tabUtenti">Utenti</button>
-    </nav>
-
-    <!-- Tavoli -->
-    <section id="page-tavoli" class="hidden">
-      <div class="card" id="createTableCard">
-        <h3>Crea un tavolo</h3>
-        <div class="row">
-          <input class="grow" id="tNome" placeholder="Nome" />
-          <select id="tCompl">
-            <option value="molto semplice">molto semplice</option>
-            <option value="semplice">semplice</option>
-            <option value="medio" selected>medio</option>
-            <option value="complesso">complesso</option>
-            <option value="molto complesso">molto complesso</option>
-          </select>
-          <input type="number" id="tDur" min="15" step="15" value="120" placeholder="Durata (min)" />
-        </div>
-        <div class="row">
-          <input type="date" id="tDate" />
-          <input type="time" id="tTime" />
-          <input type="number" id="tSeats" min="1" max="12" value="4" placeholder="Posti" />
-        </div>
-        <div class="row">
-          <textarea id="tDesc" placeholder="Descrizione (facoltativa)"></textarea>
-        </div>
-        <div class="row">
-          <button class="btn" id="btnCreateTable">Crea tavolo</button>
-        </div>
-        <p class="hint">Puoi eliminare i tavoli che hai creato. Gli admin possono modificare/eliminare qualsiasi tavolo e caricare un’immagine.</p>
-      </div>
-
-      <div style="height:10px"></div>
-      <div class="card">
-        <div class="row" style="align-items:center">
-          <h3 class="grow">Elenco tavoli</h3>
-          <input id="search" placeholder="Cerca per nome…" style="max-width:260px" />
-        </div>
-        <div id="tablesList" class="list"></div>
-      </div>
+    <section class="card" style="margin-top:16px;">
+      <h2>Le mie prenotazioni</h2>
+      <div id="mine" class="list"></div>
     </section>
 
-    <!-- Prenotazioni -->
-    <section id="page-prenotazioni" class="hidden">
-      <div class="card">
-        <h3>Le mie prenotazioni</h3>
-        <div id="resList" class="list"></div>
-      </div>
-    </section>
-
-    <!-- Privacy -->
-    <section id="page-privacy" class="hidden">
-      <div class="card">
-        <h3>Privacy Policy</h3>
-        <iframe id="privacyFrame" title="Privacy Policy" style="width:100%;height:70vh;border:1px solid #f0d6d8;border-radius:12px"></iframe>
-      </div>
-    </section>
-
-    <!-- Utenti (solo admin) -->
-    <section id="page-utenti" class="hidden">
-      <div class="card">
-        <h3>Gestione utenti</h3>
-        <div id="usersList" class="list"></div>
-      </div>
-    </section>
-  </main>
-
-  <div class="footer">
-    <span class="hint">Condividi l'app inviando il link: funziona online su Vercel. ❤️</span>
+    <footer>
+      <p>Debug rapido: apri la console e prova <code class="inline">await supabase.auth.getUser()</code>.</p>
+    </footer>
   </div>
 
-  <!-- Main logic -->
-  <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-    // Helpers
-    const $ = sel => document.querySelector(sel)
-    const el = (tag, props={}, children=[]) => {
-  const n = document.createElement(tag)
-  Object.entries(props).forEach(([k,v])=>{
-    if (k === 'class') n.className = v
-    else if (k === 'html') n.innerHTML = v
-    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v)
-    else n.setAttribute(k, v)
-  })
-  children.forEach(c=>{
-    // turn strings/numbers into Text nodes
-    if (!(c instanceof Node)) c = document.createTextNode(String(c))
-    n.appendChild(c)
-  })
-  return n
-}
-    const fmtDateTime = (iso)=> new Date(iso).toLocaleString('it-IT', { dateStyle:'medium', timeStyle:'short' })
+  <!-- 1) Public environment (must exist and define window.SUPABASE_URL / window.SUPABASE_ANON_KEY) -->
+  <script src="/env.js"></script>
 
-    if (!window.env?.SUPABASE_URL || !window.env?.SUPABASE_ANON_KEY) {
-      alert('Config mancante: imposta SUPABASE_URL e SUPABASE_ANON_KEY in window.env nel <head>.')
-      throw new Error('Missing env config')
-    }
+  <!-- 2) Supabase JS SDK v2 (UMD) -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
-    const supabase = createClient(window.env.SUPABASE_URL, window.env.SUPABASE_ANON_KEY, {
-  	auth: {
-    	persistSession: true,
-    	storage: window.localStorage,
-    	storageKey: 'tempio-ludico-auth'
-  	}
-	});
+  <!-- 3) App logic -->
+  <script>
+    (function ensureEnvBadge(){
+      const ok = typeof window.SUPABASE_URL === 'string' && typeof window.SUPABASE_ANON_KEY === 'string';
+      document.getElementById('env-status').textContent = ok ? 'OK' : 'manca';
+      document.getElementById('env-badge').style.borderColor = ok ? '#2c6fb6' : '#7a2e2e';
+    })();
 
-    $('#privacyFrame').src = window.env.PRIVACY_URL || 'about:blank'
+    (function ensureSdkBadge(){
+      const ok = typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function';
+      // The UMD exposes global `supabase` factory; we still create our client below.
+      document.getElementById('sdk-status').textContent = ok ? 'OK' : 'manca';
+      document.getElementById('sdk-badge').style.borderColor = ok ? '#2c6fb6' : '#7a2e2e';
+    })();
 
-    // Stato globale
-    let session = null
-    let profile = null
+    // 3a) Create a global client instance
+    window.supabase = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
-    // Tabs
-    const tabsNav = $('#tabs')
-    tabsNav.addEventListener('click', (e)=>{
-      const btn = e.target.closest('.tab')
-      if(!btn) return
-      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'))
-      btn.classList.add('active')
-      const tab = btn.dataset.tab
-      document.querySelectorAll('[id^="page-"]').forEach(sec=>sec.classList.add('hidden'))
-      $(`#page-${tab}`).classList.remove('hidden')
-      if(tab==='tavoli') loadTables()
-      if(tab==='prenotazioni') loadReservations()
-      if(tab==='utenti') loadUsers()
-    })
+    // --- Helpers ---
+    const $ = (id) => document.getElementById(id);
+    const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
 
-    // Autenticazione
-    async function ensureAuth() {
-  // 1) Try to get an already-restored session
-  let { data: { session } } = await supabase.auth.getSession();
-  if (session) {
-    window.session = session;
-    await fetchProfile();
-    if (typeof refreshAdminFlag === 'function') await refreshAdminFlag();
-    renderLogin();
-    return;
-  }
-
-  // 2) Wait for INITIAL_SESSION; sign in anon only if none is present
-  await new Promise(async (resolve) => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, sess) => {
-      if (event === 'INITIAL_SESSION') {
-        subscription.unsubscribe();
-        if (sess) {
-          window.session = sess;
-          await fetchProfile();
-          if (typeof refreshAdminFlag === 'function') await refreshAdminFlag();
-          renderLogin();
-          resolve();
-        } else {
-          const { data, error } = await supabase.auth.signInAnonymously();
-          if (error) { console.error('Anon sign-in error', error); alert('Errore autenticazione anonima'); resolve(); return; }
-          window.session = data.session;
-          await fetchProfile();
-          if (typeof refreshAdminFlag === 'function') await refreshAdminFlag();
-          renderLogin();
-          resolve();
-        }
-      }
-    });
-  });
-}
-
-    async function fetchProfile(){
-      const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
-      profile = data
-    }
-
-    function renderLogin(){
-      const badge = el('div', {}, [
-        el('span', { class:'avatar' , html:(profile?.username||'?').slice(0,2).toUpperCase() }),
-        el('span', { style:'margin-left:8px;font-weight:800' , html: profile?.username||'ospite' }),
-        profile?.is_admin ? el('span',{ class:'pill', style:'margin-left:8px' , html:'ADMIN'}) : el('span')
-      ])
-      $('#userBadge').innerHTML = ''
-      $('#userBadge').appendChild(badge)
-      if(profile?.username){
-        $('#loginCard').classList.add('hidden')
-        $('#tabs').classList.remove('hidden')
-        $('#page-tavoli').classList.remove('hidden')
-        loadTables()
-        if(profile?.is_admin) $('#tabUtenti').classList.remove('hidden')
-      } else {
-        $('#loginCard').classList.remove('hidden')
+    async function ensureSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        const { error } = await supabase.auth.signInAnonymously();
+        if (error) throw error;
       }
     }
 
-    async function handleLogin(){
-  const input = document.getElementById('usernameInput');
-  const username = (input?.value || '').trim();
-  if (!username) { alert('Inserisci un username.'); return; }
-
-  // Ensure there is an auth session for this browser
-  let { data: { session: s } } = await supabase.auth.getSession();
-  if (!s) {
-    const { data, error } = await supabase.auth.signInAnonymously();
-    if (error) { alert('Errore autenticazione'); console.error(error); return; }
-    s = data.session;
-  }
-
-  // UPSERT by id so we don't conflict if the row already exists
-  const { error } = await supabase
-    .from('profiles')
-    .upsert(
-      { id: s.user.id, username },
-      { onConflict: 'id' } // merge-duplicates by primary key
-    );
-
-  if (error) {
-    if (error.code === '23505') {           // unique violation (e.g., username already used)
-      alert('Username già in uso. Scegline un altro.');
-      return;
-    }
-    alert(error.message || 'Errore salvataggio profilo');
-    console.error('profiles upsert error', error);
-    return;
-  }
-
-  await fetchProfile();
-  if (typeof refreshAdminFlag === 'function') await refreshAdminFlag();
-  renderLogin();
-}
-
-    $('#btnLogin').onclick = handleLogin
-    $('#usernameInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); handleLogin() }})
-
-    // Tavoli
-    $('#btnCreateTable').onclick = async ()=>{
-      const name=$('#tNome').value.trim()
-      const desc=$('#tDesc').value.trim()
-      const duration=parseInt($('#tDur').value||'0')
-      const seats=parseInt($('#tSeats').value||'0')
-      const compl=$('#tCompl').value
-      const d=$('#tDate').value; const t=$('#tTime').value
-      if(!name||!d||!t||duration<=0||seats<=0){alert('Compila tutti i campi');return}
-      const dt=new Date(`${d}T${t}:00`)
-      if(dt<new Date()){alert('Data/ora deve essere futura');return}
-      const { error }=await supabase.from('tables').insert({name,description:desc,duration_minutes:duration,starts_at:dt.toISOString(),seats,complexity:compl})
-      if(error){alert('Errore creazione tavolo');console.error(error);return}
-      $('#tNome').value='';$('#tDesc').value=''; loadTables()
-    }
-
-    async function loadTables(){
-  	const q = (document.getElementById('search')?.value || '').trim();
-  	let query = supabase.from('tables_view').select('*').order('starts_at', { ascending: true });
-  	if (q) query = query.ilike('name', `%${q}%`);
-
-  	const { data, error } = await query;
-  	const wrap = document.getElementById('tablesList');
-  	if (!wrap) { console.warn('#tablesList non trovato'); return; }
-
-  	wrap.innerHTML = '';
-  	if (error) {
-    		console.error(error);
-    		wrap.innerHTML = '<div class="muted">Errore nel caricamento tavoli</div>';
-    		return;
-  	}
-  	if (!data?.length) {
-    		wrap.innerHTML = '<div class="muted center">Nessun tavolo trovato.</div>';
-    		return;
-  	}
-
-  	data.forEach(row => wrap.appendChild(renderTableTile(row)));
-	}
-
-    
-function renderTableTile(row){
-  const mine = row.creator_id === (session?.user?.id);
-  const canAdmin = (typeof isAdmin !== 'undefined') ? isAdmin : !!(profile && profile.is_admin);
-
-  const img = row.image_url
-    ? el('img', { src: row.image_url, alt: 'immagine tavolo' })
-    : el('div', { class:'avatar', style:'width:84px;height:84px;font-size:28px' }, ['🎲']);
-
-  const title = el('div', { html:
-    `<strong>${row.name}</strong><br>
-     <span class="muted">
-       ${new Date(row.starts_at).toLocaleString('it-IT')}
-       • ${row.duration_minutes} min
-       • ${row.seats} posti
-       • <span class="pill">${row.complexity}</span>
-     </span>`
-  });
-
-  const desc = row.description
-    ? el('div', { class:'muted', html: row.description })
-    : el('div');
-
-  const by = el('div', { class:'muted', html:
-    `Creato da <b>${row.creator_name || 'utente'}</b> • Prenotati: <b>${row.reserved}/${row.seats}</b>`
-  });
-
-  const btnBook    = el('button', { class:'btn',       onclick:()=>reserve(row.id) }, [document.createTextNode('Prenota')]);
-  const btnUnbook  = el('button', { class:'btn-ghost', onclick:()=>unreserve(row.id) }, [document.createTextNode('Annulla')]);
-  const btnDelete  = (mine || canAdmin)
-                     ? el('button', { class:'btn-ghost danger', onclick:()=>deleteTable(row.id) }, [document.createTextNode('Elimina')])
-                     : null;
-  const btnEditImg = canAdmin
-                     ? el('button', { class:'btn-ghost', onclick:()=>adminEditTable(row) }, [document.createTextNode('Modifica/Immagine')])
-                     : null;
-
-  const actions = el('div', { class:'row' }, [btnBook, btnUnbook, btnDelete || el('span'), btnEditImg || el('span')]);
-
-  return el('div', { class:'tile' }, [
-    img,
-    el('div', { class:'grow' }, [title, desc, by, el('div', { class:'divider' }), actions])
-  ]);
-}
-
-    // Prenotazioni
-    async function loadReservations(){
-      const {data}=await supabase.from('my_reservations_view').select('*').order('starts_at',{ascending:true})
-      const wrap=$('#resList');wrap.innerHTML=''
-      if(!data?.length){wrap.appendChild(el('div',{class:'muted center',html:'Nessuna prenotazione'}));return}
-      data.forEach(r=>{
-        const n=el('div',{class:'tile'},[
-          el('div',{class:'grow',html:`<strong>${r.name}</strong><br><span class="muted">${fmtDateTime(r.starts_at)} • ${r.duration_minutes} min</span>`}),
-          el('button',{class:'btn-ghost',onclick:async()=>{await supabase.from('reservations').delete().eq('id',r.reservation_id);loadReservations();loadTables()}},[document.createTextNode('Elimina')])
-        ])
-        wrap.appendChild(n)
-      })
-    }
-
-    // Utenti (admin)
-    async function loadUsers(){
-      const {data}=await supabase.from('profiles_admin_view').select('*')
-      const wrap=$('#usersList');wrap.innerHTML=''
-      if(!data?.length){wrap.appendChild(el('div',{class:'muted center',html:'Nessun utente'}));return}
-      data.forEach(u=>{
-        const n=el('div',{class:'tile'},[
-          el('div',{class:'avatar'},[document.createTextNode((u.username||'??').slice(0,2).toUpperCase())]),
-          el('div',{class:'grow',html:`<strong>${u.username||'(senza nome)'}</strong><br><span class="muted">${u.id}</span>`})
-        ])
-        wrap.appendChild(n)
-      })
-    }
-
-    // ----- Prenotazioni tavoli -----
-
-async function reserve(tableId){
-  const { error } = await supabase.from('reservations').insert({ table_id: tableId });
-  if (error) {
-    alert(error.message || 'Errore prenotazione (controlla RLS/trigger).');
-    console.error(error);
-    return;
-  }
-  loadTables();
-  loadReservations();
-}
-
-async function unreserve(tableId){
-  const { error } = await supabase
-    .from('reservations')
-    .delete()
-    .match({ table_id: tableId, user_id: session.user.id });
-  if (error) {
-    alert('Errore annullamento prenotazione');
-    console.error(error);
-    return;
-  }
-  loadTables();
-  loadReservations();
-}
-
-async function deleteTable(id){
-  if (!confirm('Eliminare il tavolo? Questa azione rimuove anche le prenotazioni.')) return;
-  const { error } = await supabase.from('tables').delete().eq('id', id);
-  if (error) {
-    alert('Operazione non autorizzata o errore.');
-    console.error(error);
-    return;
-  }
-  loadTables();
-  loadReservations();
-}
-
-async function adminEditTable(row){
-  const name = prompt('Nome', row.name);
-  if (name === null) return;
-
-  const description = prompt('Descrizione', row.description || '');
-  if (description === null) return;
-
-  const { error } = await supabase.from('tables').update({ name, description }).eq('id', row.id);
-  if (error) {
-    alert('Errore salvataggio tavolo.');
-    console.error(error);
-    return;
-  }
-
-  // Immagine opzionale (solo admin)
-  if (confirm('Vuoi caricare/aggiornare un\'immagine per questo tavolo?')) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async () => {
-      const file = input.files[0];
-      if (!file) return;
-      const path = `tables/${row.id}-${Date.now()}.jpg`;
-      const { error: upErr } = await supabase.storage.from('images').upload(path, file, {
-        upsert: true,
-        contentType: file.type
-      });
-      if (upErr) {
-        alert('Upload immagine fallito.');
-        console.error(upErr);
+    async function refreshAuthUI() {
+      const { data: { user } } = await supabase.auth.getUser();
+      const el = $('whoami');
+      const authStatus = $('auth-status');
+      if (!user) {
+        el.textContent = 'Utente: —';
+        authStatus.textContent = 'non autenticato';
+        $('auth-badge').style.borderColor = '#7a2e2e';
         return;
       }
-      const { data: pub } = supabase.storage.from('images').getPublicUrl(path);
-      await supabase.from('tables').update({ image_url: pub.publicUrl }).eq('id', row.id);
-      loadTables();
+      authStatus.textContent = 'OK';
+      $('auth-badge').style.borderColor = '#2c6fb6';
+      el.textContent = `Utente: ${user.id}`;
+
+      // Fetch profile to display username and admin
+      const { data, error } = await supabase.from('profiles').select('username, is_admin').eq('user_id', user.id).maybeSingle();
+      if (!error && data) {
+        if (data.username) $('username').value = data.username;
+        $('admin-flag').textContent = `Ruolo: ${data.is_admin ? 'admin' : 'utente'}`;
+        $('admin-flag').className = data.is_admin ? 'ok' : 'muted';
+      } else {
+        $('admin-flag').textContent = 'Ruolo: utente';
+        $('admin-flag').className = 'muted';
+      }
+    }
+
+    function showError(elId, err) {
+      const el = $(elId);
+      el.className = 'err';
+      el.textContent = (err && err.message) ? err.message : String(err);
+    }
+    function showOk(elId, msg) {
+      const el = $(elId);
+      el.className = 'ok';
+      el.textContent = msg;
+    }
+
+    async function saveUsername() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return showError('auth-log', 'Nessuna sessione utente.');
+      const username = $('username').value.trim();
+      if (!/^[a-zA-Z0-9_-]{3,30}$/.test(username)) return showError('auth-log', 'Username non valido (3–30, alfanumerico/_-).');
+      const { error } = await supabase.from('profiles').upsert({ user_id: user.id, username }, { onConflict: 'user_id' });
+      if (error) return showError('auth-log', error);
+      showOk('auth-log', 'Username salvato.');
+      refreshAuthUI();
+    }
+
+    async function createTable() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return showError('create-log', 'Nessuna sessione utente.');
+
+      const title = $('title').value.trim();
+      const description = $('desc').value.trim();
+      const complexity = $('complexity').value || null;
+      const maxSeats = parseInt($('seats').value, 10) || 0;
+      const startsAt = $('start').value ? new Date($('start').value).toISOString() : null;
+
+      if (!title) return showError('create-log', 'Titolo obbligatorio.');
+      if (maxSeats < 1 || maxSeats > 20) return showError('create-log', 'Posti 1–20.');
+
+      const payload = { created_by: user.id, title, description, complexity, max_seats: maxSeats, starts_at: startsAt };
+      const { data, error } = await supabase.from('tables').insert(payload).select().single();
+      if (error) return showError('create-log', error);
+      showOk('create-log', 'Tavolo creato.');
+      $('title').value = ''; $('desc').value = ''; $('complexity').value = ''; $('seats').value = '4'; $('start').value='';
+      await loadTables();
+    }
+
+    async function fetchReservationsCountByTable(tableIds) {
+      if (!tableIds.length) return {};
+      const { data, error } = await supabase.from('reservations').select('table_id').in('table_id', tableIds);
+      if (error) return {};
+      const counts = {};
+      for (const r of data) counts[r.table_id] = (counts[r.table_id] || 0) + 1;
+      return counts;
+    }
+
+    async function loadTables() {
+      const list = $('tables');
+      list.innerHTML = '';
+      const { data: tables, error } = await supabase.from('tables')
+        .select('id,title,description,complexity,max_seats,starts_at,created_at,created_by')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) { showError('tables-log', error); return; }
+      showOk('tables-log', `${tables.length} tavoli.`);
+
+      const ids = tables.map(t => t.id);
+      const counts = await fetchReservationsCountByTable(ids);
+      const { data: { user } } = await supabase.auth.getUser();
+
+      for (const t of tables) {
+        const taken = counts[t.id] || 0;
+        const full = taken >= (t.max_seats || 0);
+        const item = document.createElement('div');
+        item.className = 'item';
+        item.innerHTML = `
+          <h3>${t.title}</h3>
+          <div class="meta">
+            <span>Difficoltà: ${t.complexity || '—'}</span>
+            <span>Posti: ${taken}/${t.max_seats ?? '—'}</span>
+            <span>Inizio: ${fmt(t.starts_at)}</span>
+            <span>Creato: ${fmt(t.created_at)}</span>
+          </div>
+          <p>${(t.description || '').replace(/</g,'&lt;')}</p>
+          <div class="actions">
+            <button data-act="reserve" ${full ? 'disabled' : ''} title="${full ? 'Completo' : 'Prenota un posto'}">Prenota</button>
+            <button data-act="cancel" class="btn-danger">Annulla mia prenotazione</button>
+          </div>
+        `;
+        // Wire buttons
+        item.querySelector('[data-act="reserve"]').onclick = async () => {
+          await reserveSeat(t.id);
+          await loadTables();
+          await loadMine();
+        };
+        item.querySelector('[data-act="cancel"]').onclick = async () => {
+          if (!user) return;
+          await supabase.from('reservations').delete().eq('table_id', t.id).eq('user_id', user.id);
+          await loadTables();
+          await loadMine();
+        };
+        list.appendChild(item);
+      }
+    }
+
+    async function loadMine() {
+      const { data: { user } } = await supabase.auth.getUser();
+      const host = $('mine');
+      host.innerHTML = '';
+      if (!user) return;
+      // My reservations joined with tables (two calls to keep it simple)
+      const { data: myRes, error } = await supabase.from('reservations').select('table_id, reserved_at').eq('user_id', user.id).order('reserved_at', { ascending:false });
+      if (error) return;
+
+      const ids = myRes.map(r => r.table_id);
+      if (!ids.length) { host.innerHTML = '<div class="muted">Nessuna prenotazione.</div>'; return; }
+      const { data: tables } = await supabase.from('tables').select('id,title,starts_at').in('id', ids);
+
+      for (const r of myRes) {
+        const t = tables.find(x => x.id === r.table_id);
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = `
+          <h3>${t ? t.title : r.table_id}</h3>
+          <div class="meta">
+            <span>Prenotato: ${fmt(r.reserved_at)}</span>
+            <span>Inizio: ${fmt(t && t.starts_at)}</span>
+          </div>
+          <div class="actions">
+            <button class="btn-danger">Annulla</button>
+          </div>
+        `;
+        div.querySelector('button').onclick = async () => {
+          await supabase.from('reservations').delete().eq('table_id', r.table_id).eq('user_id', user.id);
+          await loadTables(); await loadMine();
+        };
+        host.appendChild(div);
+      }
+    }
+
+    async function reserveSeat(tableId) {
+      // Prefer atomic RPC if present
+      const tryRpc = async () => {
+        try {
+          const { data, error } = await supabase.rpc('reserve_seat', { p_table_id: tableId });
+          if (error) throw error;
+          return data;
+        } catch (e) {
+          // Fall back to direct insert (may fail if RLS/constraints disallow)
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw e;
+          const { error: e2 } = await supabase.from('reservations').insert({ table_id: tableId, user_id: user.id });
+          if (e2) throw e2;
+          return true;
+        }
+      };
+      try {
+        const ok = await tryRpc();
+        if (!ok) alert('Tavolo completo.');
+      } catch (err) {
+        alert('Errore prenotazione: ' + (err.message || String(err)));
+      }
+    }
+
+    async function promoteViaRpc() {
+      try {
+        const { error } = await supabase.rpc('promote_me_admin');
+        if (error) throw error;
+        alert('Richiesta di promozione inviata. Ricarica la pagina.');
+        await refreshAuthUI();
+      } catch (e) {
+        alert('RPC non disponibile o bloccato dalle policy.\n' + (e.message || e));
+      }
+    }
+
+    // --- Event bindings ---
+    $('btn-anon').onclick = async () => {
+      try {
+        await supabase.auth.signInAnonymously();
+        await refreshAuthUI(); await loadTables(); await loadMine();
+      } catch (e) { showError('auth-log', e); }
     };
-    input.click();
-  } else {
-    loadTables();
-  }
-}
+    $('btn-signout').onclick = async () => { await supabase.auth.signOut(); await refreshAuthUI(); $('tables').innerHTML = ''; $('mine').innerHTML = ''; };
+    $('btn-save-username').onclick = () => saveUsername();
+    $('btn-create').onclick = () => createTable();
+    $('btn-refresh').onclick = async () => { await loadTables(); await loadMine(); };
+    $('btn-copy-id').onclick = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await navigator.clipboard.writeText(user.id);
+      alert('User ID copiato negli appunti:\n' + user.id);
+    };
+    $('btn-promote').onclick = () => promoteViaRpc();
 
-
-    // Search
-    $('#search').addEventListener('input',()=>loadTables())
-
-    // Avvio
-    ensureAuth()
+    // --- Boot ---
+    (async function boot() {
+      try {
+        await ensureSession();
+        await refreshAuthUI();
+        await loadTables();
+        await loadMine();
+      } catch (e) {
+        showError('auth-log', e);
+      }
+    })();
   </script>
-
-
-<section id="pageUtenti" class="hidden" style="padding: 16px;">
-      <h2>Utenti</h2>
-      <div id="usersList">Caricamento utenti…</div>
-    </section>
-
-<script>
-function showUsersTab(isAdmin) {
-  const tabBtn = document.getElementById('tabUtenti');
-  const tabLi = tabBtn ? tabBtn.parentElement : null;
-  const page = document.getElementById('pageUtenti');
-  if (!tabBtn || !tabLi || !page) return;
-  if (isAdmin) {
-    tabLi.classList.remove('hidden');
-    tabBtn.classList.remove('hidden');
-  } else {
-    tabLi.classList.add('hidden');
-    tabBtn.classList.add('hidden');
-    page.classList.add('hidden');
-  }
-}
-</script>
-
-<script>
-async function refreshAdminFlag(){
-  try {
-    const { data: { session: s } } = await supabase.auth.getSession();
-    const isAdmin = (s?.user?.app_metadata?.role === 'admin') || !!(window.profile?.is_admin);
-    window.__isAdmin = isAdmin;
-    showUsersTab(isAdmin);
-  } catch (e) {
-    console.warn('refreshAdminFlag error', e);
-  }
-}
-</script>
-
-<script>
-async function renderUsersPage(){
-  const list = document.getElementById('usersList');
-  if (!list) return;
-  try {
-    const { data, error } = await supabase.from('profiles').select('id, username, created_at').order('created_at', { ascending: false });
-    if (error) throw error;
-    if (!data || data.length === 0) { list.textContent = 'Nessun utente.'; return; }
-    list.innerHTML = '';
-    const ul = document.createElement('ul');
-    ul.style.listStyle = 'none';
-    ul.style.padding = '0';
-    data.forEach(u => {
-      const li = document.createElement('li');
-      li.style.padding = '8px 0';
-      li.style.borderBottom = '1px solid #eee';
-      li.textContent = `${u.username} — ${u.id}`;
-      ul.appendChild(li);
-    });
-    list.appendChild(ul);
-  } catch (e) {
-    console.error(e);
-    list.textContent = 'Errore nel caricamento utenti.';
-  }
-}
-(function bindUsersTab(){
-  const btn = document.getElementById('tabUtenti');
-  if (!btn) return;
-  btn.addEventListener('click', async () => {
-    // Show page and render
-    document.getElementById('pageUtenti')?.classList.remove('hidden');
-    await renderUsersPage();
-  });
-})();
-</script>
-
-<script>
-document.addEventListener('DOMContentLoaded', async () => {
-  try { await refreshAdminFlag(); } catch {}
-});
-</script>
 </body>
 </html>
-
