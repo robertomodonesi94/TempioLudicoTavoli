@@ -69,13 +69,10 @@
 
         <div style="margin-top:10px;">
           <button id="btn-copy-id">Copia il mio user_id</button>
-          <!-- Optional: will work only if you created the RPC `promote_me_admin` -->
+          <!-- Richiede l'RPC promote_me_admin lato DB per funzionare -->
           <button id="btn-promote" title="Richiede l'RPC promote_me_admin" class="btn-accent">Prova promozione admin (RPC)</button>
         </div>
 
-        <p class="muted" style="margin-top:12px;">
-          Nota: per promuoverti admin via SQL, usa l’UUID corrente mostrato sopra e la query che ti ho fornito in precedenza.
-        </p>
         <div id="auth-log" class="muted"></div>
       </section>
 
@@ -135,53 +132,47 @@
     </footer>
   </div>
 
-  <!-- 1) Public environment (must exist and define window.SUPABASE_URL / window.SUPABASE_ANON_KEY) -->
-  <script src="/env.js" onerror="console.error('env.js failed to load - check path')"></script>
+  <!-- 1) Variabili pubbliche; deve definire window.SUPABASE_URL e window.SUPABASE_ANON_KEY -->
+  <script src="/env.js"></script>
 
-  <!-- 2) Supabase JS SDK v2 (UMD) -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <!-- 2) App + Supabase via ES Module -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-  <!-- 3) App logic -->
-  <script>
-    // ---- Normalize the factory and badge checks ----
-    // The UMD exposes a global `supabase` (factory). Before creating a client, `window.supabase` is undefined.
-    // Keep a reference to the factory as `window.supabaseFactory`.
-    window.supabaseFactory = window.supabaseFactory || window.supabase || (typeof supabase !== 'undefined' ? supabase : undefined);
-
-    (function ensureEnvBadge(){
-      const ok = typeof window.SUPABASE_URL === 'string' && typeof window.SUPABASE_ANON_KEY === 'string';
-      document.getElementById('env-status').textContent = ok ? 'OK' : 'manca';
-      document.getElementById('env-badge').style.borderColor = ok ? '#2c6fb6' : '#7a2e2e';
-    })();
-
-    (function ensureSdkBadge(){
-      const ok = typeof window.supabaseFactory === 'object' && typeof window.supabaseFactory.createClient === 'function';
-      document.getElementById('sdk-status').textContent = ok ? 'OK' : 'manca';
-      document.getElementById('sdk-badge').style.borderColor = ok ? '#2c6fb6' : '#7a2e2e';
-    })();
-
-    // ---- Hard guard for env presence ----
+    // ---- Guard per env ----
     if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
-      throw new Error('Missing SUPABASE_URL / SUPABASE_ANON_KEY: ensure /env.js defines them on window.*');
-    }
-    if (!window.supabaseFactory || typeof window.supabaseFactory.createClient !== 'function') {
-      throw new Error('Supabase SDK not loaded: check the <script src="https://unpkg.com/@supabase/supabase-js@2"> tag.');
+      throw new Error("Missing SUPABASE_URL o SUPABASE_ANON_KEY da /env.js");
     }
 
-    // ---- Singleton client creation (avoid duplicates) ----
-    if (!window.supabase) {
-      window.supabase = window.supabaseFactory.createClient(
-        window.SUPABASE_URL,
-        window.SUPABASE_ANON_KEY,
-        { auth: { storageKey: 'sb-tempioludico', autoRefreshToken: true, persistSession: true, detectSessionInUrl: true } }
-      );
-      console.log('Supabase client initialized (singleton).');
-    }
+    // ---- Singleton Supabase client ----
+    window.supabase = window.supabase ?? createClient(
+      window.SUPABASE_URL,
+      window.SUPABASE_ANON_KEY,
+      { auth: { storageKey: "sb-tempioludico", autoRefreshToken: true, persistSession: true, detectSessionInUrl: true } }
+    );
 
-    // --- Helpers ---
+    // ---- Badge stato ----
+    document.getElementById('env-status').textContent = 'OK';
+    document.getElementById('env-badge').style.borderColor = '#2c6fb6';
+    document.getElementById('sdk-status').textContent = 'OK';
+    document.getElementById('sdk-badge').style.borderColor = '#2c6fb6';
+
+    // === Helpers ===
     const $ = (id) => document.getElementById(id);
     const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
 
+    function showError(elId, err) {
+      const el = $(elId);
+      el.className = 'err';
+      el.textContent = (err && err.message) ? err.message : String(err);
+    }
+    function showOk(elId, msg) {
+      const el = $(elId);
+      el.className = 'ok';
+      el.textContent = msg;
+    }
+
+    // === Auth/UI ===
     async function ensureSession() {
       const { data: { session } } = await window.supabase.auth.getSession();
       if (!session) {
@@ -204,7 +195,7 @@
       $('auth-badge').style.borderColor = '#2c6fb6';
       el.textContent = `Utente: ${user.id}`;
 
-      // Fetch profile to display username and admin
+      // Mostra username e ruolo se esiste la riga profilo
       const { data, error } = await window.supabase
         .from('profiles')
         .select('username, is_admin')
@@ -220,28 +211,20 @@
       }
     }
 
-    function showError(elId, err) {
-      const el = $(elId);
-      el.className = 'err';
-      el.textContent = (err && err.message) ? err.message : String(err);
-    }
-    function showOk(elId, msg) {
-      const el = $(elId);
-      el.className = 'ok';
-      el.textContent = msg;
-    }
-
     async function saveUsername() {
       const { data: { user } } = await window.supabase.auth.getUser();
       if (!user) return showError('auth-log', 'Nessuna sessione utente.');
       const username = $('username').value.trim();
       if (!/^[a-zA-Z0-9_-]{3,30}$/.test(username)) return showError('auth-log', 'Username non valido (3–30, alfanumerico/_-).');
-      const { error } = await window.supabase.from('profiles').upsert({ user_id: user.id, username }, { onConflict: 'user_id' });
+      const { error } = await window.supabase
+        .from('profiles')
+        .upsert({ user_id: user.id, username }, { onConflict: 'user_id' });
       if (error) return showError('auth-log', error);
       showOk('auth-log', 'Username salvato.');
       refreshAuthUI();
     }
 
+    // === Tavoli & Prenotazioni ===
     async function createTable() {
       const { data: { user } } = await window.supabase.auth.getUser();
       if (!user) return showError('create-log', 'Nessuna sessione utente.');
@@ -256,7 +239,7 @@
       if (maxSeats < 1 || maxSeats > 20) return showError('create-log', 'Posti 1–20.');
 
       const payload = { created_by: user.id, title, description, complexity, max_seats: maxSeats, starts_at: startsAt };
-      const { data, error } = await window.supabase.from('tables').insert(payload).select().single();
+      const { error } = await window.supabase.from('tables').insert(payload);
       if (error) return showError('create-log', error);
       showOk('create-log', 'Tavolo creato.');
       $('title').value = ''; $('desc').value = ''; $('complexity').value = ''; $('seats').value = '4'; $('start').value='';
@@ -265,7 +248,10 @@
 
     async function fetchReservationsCountByTable(tableIds) {
       if (!tableIds.length) return {};
-      const { data, error } = await window.supabase.from('reservations').select('table_id').in('table_id', tableIds);
+      const { data, error } = await window.supabase
+        .from('reservations')
+        .select('table_id')
+        .in('table_id', tableIds);
       if (error) return {};
       const counts = {};
       for (const r of data) counts[r.table_id] = (counts[r.table_id] || 0) + 1;
@@ -275,7 +261,8 @@
     async function loadTables() {
       const list = $('tables');
       list.innerHTML = '';
-      const { data: tables, error } = await window.supabase.from('tables')
+      const { data: tables, error } = await window.supabase
+        .from('tables')
         .select('id,title,description,complexity,max_seats,starts_at,created_at,created_by')
         .order('created_at', { ascending: false })
         .limit(100);
@@ -312,7 +299,11 @@
         };
         item.querySelector('[data-act="cancel"]').onclick = async () => {
           if (!user) return;
-          await window.supabase.from('reservations').delete().eq('table_id', t.id).eq('user_id', user.id);
+          await window.supabase
+            .from('reservations')
+            .delete()
+            .eq('table_id', t.id)
+            .eq('user_id', user.id);
           await loadTables();
           await loadMine();
         };
@@ -325,12 +316,21 @@
       const host = $('mine');
       host.innerHTML = '';
       if (!user) return;
-      const { data: myRes, error } = await window.supabase.from('reservations').select('table_id, reserved_at').eq('user_id', user.id).order('reserved_at', { ascending:false });
+
+      const { data: myRes, error } = await window.supabase
+        .from('reservations')
+        .select('table_id, reserved_at')
+        .eq('user_id', user.id)
+        .order('reserved_at', { ascending:false });
       if (error) return;
 
       const ids = myRes.map(r => r.table_id);
       if (!ids.length) { host.innerHTML = '<div class="muted">Nessuna prenotazione.</div>'; return; }
-      const { data: tables } = await window.supabase.from('tables').select('id,title,starts_at').in('id', ids);
+
+      const { data: tables } = await window.supabase
+        .from('tables')
+        .select('id,title,starts_at')
+        .in('id', ids);
 
       for (const r of myRes) {
         const t = tables.find(x => x.id === r.table_id);
@@ -343,18 +343,24 @@
             <span>Inizio: ${fmt(t && t.starts_at)}</span>
           </div>
           <div class="actions">
-            <button class="btn-danger">Annulla</button>
+            <button class="btn-danger" data-act="cancel">Annulla</button>
           </div>
         `;
-        div.querySelector('button').onclick = async () => {
-          await window.supabase.from('reservations').delete().eq('table_id', r.table_id).eq('user_id', user.id);
-          await loadTables(); await loadMine();
+        div.querySelector('[data-act="cancel"]').onclick = async () => {
+          await window.supabase
+            .from('reservations')
+            .delete()
+            .eq('table_id', r.table_id)
+            .eq('user_id', user.id);
+          await loadTables();
+          await loadMine();
         };
         host.appendChild(div);
       }
     }
 
     async function reserveSeat(tableId) {
+      // Prova RPC atomica se disponibile, altrimenti fallback a INSERT
       const tryRpc = async () => {
         try {
           const { data, error } = await window.supabase.rpc('reserve_seat', { p_table_id: tableId });
@@ -363,7 +369,9 @@
         } catch (e) {
           const { data: { user } } = await window.supabase.auth.getUser();
           if (!user) throw e;
-          const { error: e2 } = await window.supabase.from('reservations').insert({ table_id: tableId, user_id: user.id });
+          const { error: e2 } = await window.supabase
+            .from('reservations')
+            .insert({ table_id: tableId, user_id: user.id });
           if (e2) throw e2;
           return true;
         }
@@ -387,14 +395,23 @@
       }
     }
 
-    // --- Event bindings ---
+    // === Event bindings ===
     $('btn-anon').onclick = async () => {
       try {
         await window.supabase.auth.signInAnonymously();
-        await refreshAuthUI(); await loadTables(); await loadMine();
+        await refreshAuthUI();
+        await loadTables();
+        await loadMine();
       } catch (e) { showError('auth-log', e); }
     };
-    $('btn-signout').onclick = async () => { await window.supabase.auth.signOut(); await refreshAuthUI(); $('tables').innerHTML = ''; $('mine').innerHTML = ''; };
+
+    $('btn-signout').onclick = async () => {
+      await window.supabase.auth.signOut();
+      await refreshAuthUI();
+      $('tables').innerHTML = '';
+      $('mine').innerHTML = '';
+    };
+
     $('btn-save-username').onclick = () => saveUsername();
     $('btn-create').onclick = () => createTable();
     $('btn-refresh').onclick = async () => { await loadTables(); await loadMine(); };
@@ -406,17 +423,15 @@
     };
     $('btn-promote').onclick = () => promoteViaRpc();
 
-    // --- Boot ---
-    (async function boot() {
-      try {
-        await ensureSession();
-        await refreshAuthUI();
-        await loadTables();
-        await loadMine();
-      } catch (e) {
-        showError('auth-log', e);
-      }
-    })();
+    // === Boot ===
+    try {
+      await ensureSession();
+      await refreshAuthUI();
+      await loadTables();
+      await loadMine();
+    } catch (e) {
+      showError('auth-log', e);
+    }
   </script>
 </body>
 </html>
