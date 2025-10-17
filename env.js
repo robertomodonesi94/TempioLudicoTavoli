@@ -14,8 +14,8 @@
   // --- REQUIRED: set your real values here ---
   // Example URL looks like: https://abcd1234.supabase.co
   // Example anon key starts with: eyJhbGciOiJIUzI1NiIsInR5cCI6...
-  window.SUPABASE_URL = "https://ekijcvhrvkpgncfyemwu.supabase.co";
-  window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVraWpjdmhydmtwZ25jZnllbXd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NDQyMDMsImV4cCI6MjA3MzIyMDIwM30.4zSq2FwHbwT13OcXmNbMI6beFaKq0r6j6pmzqlCV1xk";
+  window.SUPABASE_URL = "https://xbiymioeyhvlgacfjeqz.supabase.co";
+  window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhiaXltaW9leWh2bGdhY2ZqZXF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1MzMzNjAsImV4cCI6MjA3NjEwOTM2MH0.dRSsQqgGwvCILMXXCg7Argiy8rQ2SeupTQIzqs5H7dc";
   // ------------------------------------------
 
   // Optional: allow quick overrides via querystring (handy for local tests)
