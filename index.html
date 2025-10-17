@@ -6,40 +6,105 @@
   <title>Tempio Ludico Tavoli</title>
   <meta name="description" content="Crea tavoli da gioco e prenota un posto." />
   <style>
-    :root { --bg:#0b0f14; --card:#121821; --muted:#9fb0c9; --text:#e8eef6; --accent:#5fb3ff; --danger:#ff6b6b; --ok:#86efac; }
-    * { box-sizing: border-box; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji"; background: var(--bg); color: var(--text); }
-    a { color: var(--accent); text-decoration: none; }
-    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
-    header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom: 24px; }
-    h1 { font-size: 22px; margin: 0; }
-    .badge { display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; background: #1b2532; color: var(--muted); border: 1px solid #223046; }
-    .grid { display:grid; grid-template-columns: 1fr; gap:16px; }
-    @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
-    .card { background: var(--card); border: 1px solid #1a2433; border-radius: 12px; padding: 16px; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
-    .card h2 { margin-top:0; font-size: 16px; }
-    label { display:block; font-size: 13px; color: var(--muted); margin: 10px 0 6px; }
-    input, select { width: 100%; background: #0e141d; color: var(--text); border:1px solid #223046; border-radius: 8px; padding: 10px 12px; font-size: 14px; }
-    .row { display:flex; gap: 10px; flex-wrap: wrap; }
-    .row > * { flex:1; }
-    .row .shrink { flex: 0 0 auto; }
-    button { background: #172233; color: var(--text); border: 1px solid #233248; border-radius: 10px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
-    button:hover { border-color: #31507b; }
-    .btn-accent { background: #143250; border-color:#2c6fb6; }
-    .btn-danger { background: #3b1b1b; border-color:#7a2e2e; }
-    .muted { color: var(--muted); }
-    .ok { color: var(--ok); }
-    .err { color: var(--danger); }
-    .list { display:flex; flex-direction: column; gap:10px; margin-top: 10px; }
-    .item { border:1px solid #203049; border-radius: 10px; padding: 12px; background:#0e141d; }
-    .item h3 { margin: 0 0 8px 0; font-size: 15px; }
-    .item .meta { font-size: 12px; color: var(--muted); display:flex; gap:10px; flex-wrap:wrap; }
-    .item .actions { margin-top: 10px; display:flex; gap:10px; flex-wrap:wrap; }
-    code.inline { background: #0c121a; border: 1px solid #1c2839; border-radius: 6px; padding: 2px 6px; }
-    footer { margin-top: 28px; font-size: 12px; color: var(--muted); }
-    img.thumb { width:100%; height:160px; object-fit:cover; border-radius:8px; border:1px solid #1f2937; }
-    .noimg { height:160px; display:flex; align-items:center; justify-content:center; border:1px dashed #243244; border-radius:8px; }
+  :root {
+    --bg:      #0b0f14;
+    --card:    #121821;
+    --muted:   #9fb0c9;
+    --text:    #ffffff;   /* secondary color (general text) */
+    --accent:  #ed445b;   /* main brand color */
+    --danger:  #ff6b6b;
+    --ok:      #86efac;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin:0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  /* Links pick up the new accent */
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { opacity: .92; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom: 24px; }
+  h1 { font-size: 22px; margin: 0; }
+
+  .badge {
+    display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px;
+    background: #1b2532; color: var(--muted); border: 1px solid #223046;
+  }
+
+  .grid { display:grid; grid-template-columns: 1fr; gap:16px; }
+  @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+
+  .card {
+    background: var(--card); border: 1px solid #1a2433; border-radius: 12px; padding: 16px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.2);
+  }
+  .card h2 { margin-top:0; font-size: 16px; }
+
+  label { display:block; font-size: 13px; color: var(--muted); margin: 10px 0 6px; }
+
+  input, select {
+    width: 100%; background: #0e141d; color: var(--text);
+    border:1px solid #223046; border-radius: 8px; padding: 10px 12px; font-size: 14px;
+  }
+  /* New accent focus ring */
+  input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(237, 68, 91, 0.25);
+  }
+
+  .row { display:flex; gap: 10px; flex-wrap: wrap; }
+  .row > * { flex:1; }
+  .row .shrink { flex: 0 0 auto; }
+
+  /* Base button (kept dark), hover slightly brighter */
+  button {
+    background: #172233; color: var(--text);
+    border: 1px solid #233248; border-radius: 10px; padding: 10px 14px;
+    cursor: pointer; font-weight: 600;
+  }
+  button:hover { border-color: #31507b; }
+
+  /* Accent button uses the new brand color with white text */
+  .btn-accent {
+    background: var(--accent);
+    border-color: #d73c52;   /* slightly darker edge */
+    color: #ffffff;
+  }
+  .btn-accent:hover { filter: brightness(0.96); }
+
+  .btn-danger { background: #3b1b1b; border-color:#7a2e2e; }
+
+  .muted { color: var(--muted); }
+  .ok    { color: var(--ok); }
+  .err   { color: var(--danger); }
+
+  .list { display:flex; flex-direction: column; gap:10px; margin-top: 10px; }
+  .item { border:1px solid #203049; border-radius: 10px; padding: 12px; background:#0e141d; }
+  .item h3 { margin: 0 0 8px 0; font-size: 15px; }
+
+  .item .meta { font-size: 12px; color: var(--muted); display:flex; gap:10px; flex-wrap:wrap; }
+  .item .actions { margin-top: 10px; display:flex; gap:10px; flex-wrap:wrap; }
+
+  code.inline {
+    background: #0c121a; border: 1px solid #1c2839; border-radius: 6px; padding: 2px 6px;
+  }
+
+  footer { margin-top: 28px; font-size: 12px; color: var(--muted); }
+
+  img.thumb { width:100%; height:160px; object-fit:cover; border-radius:8px; border:1px solid #1f2937; }
+  .noimg { height:160px; display:flex; align-items:center; justify-content:center; border:1px dashed #243244; border-radius:8px; }
+
+  /* Accent selection color */
+  ::selection { background: var(--accent); color: #ffffff; }
   </style>
+
 </head>
 <body>
   <div class="container">
