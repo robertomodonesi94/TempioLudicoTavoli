@@ -182,12 +182,12 @@
     </div>
 
     <footer>
-      <p>Debug rapido: apri la console e prova <code class="inline">await window.supabase.auth.getUser()</code>.</p>
+      <p>Debug rapido: apri la console e prova <code class="inline">await window.supabase.auth.getSession()</code>.</p>
     </footer>
   </div>
 
   <!-- Public runtime config -->
-  <script src="/env.js?v=10"></script>
+  <script src="/env.js?v=11"></script>
 
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -252,22 +252,31 @@
       const password = $('password').value;
       if (!email || !password) { return log('auth-log', 'Email e password sono obbligatorie.', 'err'); }
 
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         if ((error.message || '').toLowerCase().includes('confirm') || error.status === 400) {
           return log('auth-log', 'Email non confermata. Controlla la casella di posta per il link di verifica.', 'err');
         }
         return log('auth-log', error.message || String(error), 'err');
       }
-      log('auth-log', 'Accesso riuscito.', 'ok');
-      await afterAuthUpdate();
+
+      // Flip UI immediately using returned session (avoid races)
+      if (data?.session) {
+        showAppForUser(true);
+        log('auth-log', 'Accesso riuscito.', 'ok');
+        await afterAuthUpdate(data.session);
+      } else {
+        const s = await supabase.auth.getSession();
+        showAppForUser(!!s.data.session);
+        await afterAuthUpdate(s.data.session);
+      }
     }
 
     async function signOut() {
       await supabase.auth.signOut();
       log('auth-log', 'Sei uscito.', 'muted');
       showAppForUser(false);
-      // clear lists
+      // Clear lists
       $('tables').innerHTML = '';
       $('mine').innerHTML = '';
       $('whoami').textContent = 'Utente: —';
@@ -284,7 +293,7 @@
 
       const { error } = await supabase.rpc('update_my_profile', {
         p_username:   username,
-        p_full_name:  null,        // intentionally not supported in UI
+        p_full_name:  null,
         p_avatar_url: avatar_url
       });
 
@@ -297,24 +306,35 @@
       await afterAuthUpdate();
     }
 
-    // ===== Shared auth state → UI reflection =====
-    async function afterAuthUpdate() {
-      const { data: { user } } = await supabase.auth.getUser();
-      showAppForUser(!!user);
+    // ===== Auth state → UI & data =====
+    async function afterAuthUpdate(sessionMaybe) {
+      // Prefer provided session; otherwise read local session (fast)
+      let session = sessionMaybe;
+      if (!session) {
+        const s = await supabase.auth.getSession();
+        session = s.data.session || null;
+      }
+
+      showAppForUser(!!session);
+      const user = session?.user || null;
       if (!user) return;
 
       $('whoami').textContent = `Utente: ${user.email || user.id}`;
 
-      // Load profile (no full_name field used)
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username, avatar_url, role')
-        .eq('id', user.id)
-        .maybeSingle();
+      // Profile fetch should not block UI visibility
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username, avatar_url, role')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      $('username').value     = profile?.username   ?? '';
-      $('avatar_url').value   = profile?.avatar_url ?? '';
-      $('role').textContent   = 'Ruolo: ' + (profile?.role || 'user');
+        $('username').value   = profile?.username   ?? '';
+        $('avatar_url').value = profile?.avatar_url ?? '';
+        $('role').textContent = 'Ruolo: ' + (profile?.role || 'user');
+      } catch {
+        $('role').textContent = 'Ruolo: —';
+      }
 
       await loadTavoli();
       await loadMine();
@@ -430,6 +450,26 @@
       }
     }
 
+    // ===== Auth events & boot =====
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('auth event:', event, session);
+      showAppForUser(!!session);
+      if (session) await afterAuthUpdate(session);
+      if (!session) {
+        // Signed out: clear UI quickly
+        $('tables').innerHTML = '';
+        $('mine').innerHTML = '';
+        $('whoami').textContent = 'Utente: —';
+        $('role').textContent = 'Ruolo: —';
+      }
+    });
+
+    (async () => {
+      const s = await supabase.auth.getSession();   // local, no network
+      showAppForUser(!!s.data.session);
+      await afterAuthUpdate(s.data.session);
+    })();
+
     // Wire events
     $('btn-signup').onclick = signUpEmailPassword;
     $('btn-signin').onclick = signInEmailPassword;
@@ -437,19 +477,6 @@
     $('btn-save-profile').onclick = saveProfile;
     $('btn-create').onclick = createTavolo;
     $('btn-refresh').onclick = async () => { await loadTavoli(); await loadMine(); };
-
-    // React to auth changes
-    supabase.auth.onAuthStateChange(async (_event, _session) => {
-      await afterAuthUpdate();
-    });
-
-    // First paint
-    (async () => {
-      const badge = document.querySelector('#auth-status');
-      if (badge) badge.textContent = 'errore';
-      showAppForUser(false);  // hide app until we confirm session
-      await afterAuthUpdate(); // shows app if already logged in
-    })();
   </script>
 </body>
 </html>
