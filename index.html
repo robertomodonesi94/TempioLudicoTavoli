@@ -7,113 +7,167 @@
   <meta name="description" content="Crea tavoli da gioco e prenota un posto." />
   <style>
   :root {
-    --bg:      linear-gradient(135deg, #ed445b 0%, #ffffff 100%); /* two-color background */
-    --card:    #121821;
-    --muted:   #9fb0c9;
-    --text:    #ffffff;   /* secondary color (general text) */
-    --accent:  #ed445b;   /* main brand color */
-    --danger:  #ff6b6b;
-    --ok:      #86efac;
+    /* Brand + surfaces */
+    --bg:      #ed445b;   /* full-page background */
+    --card:    #ffffff;   /* page rectangles */
+    --ink:     #0b0f14;   /* text on white cards */
+
+    /* Text + accents */
+    --text:    #ffffff;   /* text on the red background */
+    --accent:  #ed445b;   /* brand accent (buttons/links) */
+
+    /* Supporting */
+    --muted:   #5b6c85;   /* muted text on white cards */
+    --danger:  #ef4444;
+    --ok:      #16a34a;
+
+    /* Borders/shadows for cards/inputs */
+    --border:  #e5e7eb;
+    --border-strong: #d1d5db;
+    --shadow:  0 6px 18px rgba(0,0,0,.12);
   }
 
   * { box-sizing: border-box; }
+
+  /* Full-bleed brand background with white foreground */
   body {
     margin:0;
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
     background: var(--bg);
-    background-attachment: fixed;         /* nicer feel on scroll */
     color: var(--text);
   }
 
-  /* Keep header readable over the gradient */
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+  /* Keep header readable over red background */
   header {
     display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom: 24px;
-    background: rgba(18,24,33,0.65);
-    border: 1px solid #1a2433;
-    border-radius: 12px;
-    padding: 12px 16px;
-    backdrop-filter: saturate(120%) blur(6px);
+    color: var(--text);
   }
-
-  /* Links use the primary accent */
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { opacity: .92; }
-
-  .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
   h1 { font-size: 22px; margin: 0; }
 
+  /* Badges sit on red bg */
   .badge {
     display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px;
-    background: #1b2532; color: var(--muted); border: 1px solid #223046;
+    background: rgba(255,255,255,0.15);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,0.35);
   }
 
+  /* Grid/layout unchanged */
   .grid { display:grid; grid-template-columns: 1fr; gap:16px; }
   @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
 
+  /* WHITE “pages” with dark text */
   .card {
-    background: var(--card); border: 1px solid #1a2433; border-radius: 12px; padding: 16px;
-    box-shadow: 0 6px 18px rgba(0,0,0,.2);
+    background: var(--card);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: var(--shadow);
   }
-  .card h2 { margin-top:0; font-size: 16px; }
+  .card h2 { margin-top:0; font-size: 16px; color: var(--ink); }
 
+  /* Labels on white */
   label { display:block; font-size: 13px; color: var(--muted); margin: 10px 0 6px; }
 
-  input, select {
-    width: 100%; background: #0e141d; color: var(--text);
-    border:1px solid #223046; border-radius: 8px; padding: 10px 12px; font-size: 14px;
+  /* Inputs on white cards */
+  input, select, textarea {
+    width: 100%;
+    background: #ffffff;
+    color: var(--ink);
+    border:1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
   }
   /* Accent focus ring */
   input:focus, select:focus, textarea:focus {
     outline: 2px solid var(--accent);
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(237, 68, 91, 0.25);
+    box-shadow: 0 0 0 3px rgba(237, 68, 91, 0.22);
   }
 
   .row { display:flex; gap: 10px; flex-wrap: wrap; }
   .row > * { flex:1; }
   .row .shrink { flex: 0 0 auto; }
 
-  /* Base button */
+  /* Buttons — neutral and accent */
   button {
-    background: #172233; color: var(--text);
-    border: 1px solid #233248; border-radius: 10px; padding: 10px 14px;
-    cursor: pointer; font-weight: 600;
+    background: #f3f4f6;
+    color: var(--ink);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-weight: 600;
   }
-  button:hover { border-color: #31507b; }
+  button:hover { filter: brightness(0.98); }
 
-  /* Accent button uses the brand color with white text */
+  /* Primary CTA with brand color */
   .btn-accent {
     background: var(--accent);
-    border-color: #d73c52;   /* slightly darker edge */
+    border-color: #d73c52;
     color: #ffffff;
   }
   .btn-accent:hover { filter: brightness(0.96); }
 
-  .btn-danger { background: #3b1b1b; border-color:#7a2e2e; }
+  /* Danger variant (on white cards) */
+  .btn-danger {
+    background: #fee2e2;
+    color: #7f1d1d;
+    border-color:#fecaca;
+  }
+  .btn-danger:hover { filter: brightness(0.98); }
 
+  /* Text utilities — adapt to surface */
   .muted { color: var(--muted); }
   .ok    { color: var(--ok); }
   .err   { color: var(--danger); }
 
+  /* Lists inside white cards */
   .list { display:flex; flex-direction: column; gap:10px; margin-top: 10px; }
-  .item { border:1px solid #203049; border-radius: 10px; padding: 12px; background:#0e141d; }
-  .item h3 { margin: 0 0 8px 0; font-size: 15px; }
-
+  .item {
+    border:1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    background:#ffffff;
+    color: var(--ink);
+  }
+  .item h3 { margin: 0 0 8px 0; font-size: 15px; color: var(--ink); }
   .item .meta { font-size: 12px; color: var(--muted); display:flex; gap:10px; flex-wrap:wrap; }
   .item .actions { margin-top: 10px; display:flex; gap:10px; flex-wrap:wrap; }
 
+  /* Code chips inside cards */
   code.inline {
-    background: #0c121a; border: 1px solid #1c2839; border-radius: 6px; padding: 2px 6px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 6px;
+    color: var(--ink);
   }
 
-  footer { margin-top: 28px; font-size: 12px; color: var(--muted); }
+  footer { margin-top: 28px; font-size: 12px; color: rgba(255,255,255,0.9); }
 
-  img.thumb { width:100%; height:160px; object-fit:cover; border-radius:8px; border:1px solid #1f2937; }
-  .noimg { height:160px; display:flex; align-items:center; justify-content:center; border:1px dashed #243244; border-radius:8px; }
+  /* Media */
+  img.thumb {
+    width:100%; height:160px; object-fit:cover; border-radius:8px;
+    border:1px solid var(--border);
+  }
+  .noimg {
+    height:160px; display:flex; align-items:center; justify-content:center;
+    border:1px dashed var(--border-strong); border-radius:8px; color: var(--muted); background:#fafafa;
+  }
 
-  /* Accent text selection */
-  ::selection { background: var(--accent); color: #ffffff; }
+  /* Links: on red background they’re white; inside cards use brand color */
+  a { color: var(--text); text-decoration: none; }
+  .card a, .item a { color: var(--accent); }
+
+  /* Selection */
+  ::selection { background: rgba(255,255,255,0.35); color: #000; }
   </style>
+
 
 
 </head>
