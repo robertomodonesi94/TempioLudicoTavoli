@@ -10,11 +10,10 @@
     script-src 'self' https: 'unsafe-inline';
     style-src  'self' 'unsafe-inline';
     img-src    https: data:;
-    connect-src 'self'
-      https://*.supabase.co wss://*.supabase.co;">
+    connect-src 'self' https://*.supabase.co wss://*.supabase.co;">
   <meta name="theme-color" content="#ed445b">
 
-  <!-- === THEME: full-page brand background (#ed445b) + white cards === -->
+  <!-- THEME: full-page brand background (#ed445b) + white cards -->
   <style>
     :root {
       /* Brand + surfaces */
@@ -208,7 +207,7 @@
         </div>
       </section>
 
-      <!-- PROFILE: username / name -->
+      <!-- PROFILE: username / name / avatar via RPC update_my_profile -->
       <section class="card">
         <h2>Profilo</h2>
         <div class="row">
@@ -222,7 +221,13 @@
           </div>
         </div>
         <div class="row" style="margin-top:8px;">
-          <button id="btn-save-profile" class="btn-accent">Salva profilo</button>
+          <div>
+            <label for="avatar_url">Avatar URL (facoltativo)</label>
+            <input id="avatar_url" placeholder="https://…" />
+          </div>
+          <div class="row">
+            <button id="btn-save-profile" class="btn-accent">Salva profilo</button>
+          </div>
         </div>
         <div id="profile-log" class="muted" style="margin-top:8px;"></div>
       </section>
@@ -278,7 +283,7 @@
   </div>
 
   <!-- Public runtime config -->
-  <script src="/env.js?v=7"></script>
+  <script src="/env.js?v=8"></script>
 
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -295,14 +300,14 @@
     const supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
       auth: { storageKey: 'sb-tempioludico', autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
     });
-    window.supabase = supabase; // handy for console
+    window.supabase = supabase; // for console debugging
 
     // DOM helpers
     const $ = (id) => document.getElementById(id);
     const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
     const log = (id, msg, cls='muted') => { const el=$(id); if(el){ el.className=cls; el.textContent=msg; } };
 
-    // AUTH UI handlers (Email + Password)
+    // ===== AUTH: Email + Password =====
     async function signUpEmailPassword() {
       log('auth-log', '');
       const email = $('email').value.trim();
@@ -332,7 +337,6 @@
 
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        // Common case: email non confermata
         if ((error.message || '').toLowerCase().includes('confirm') || error.status === 400) {
           return log('auth-log', 'Email non confermata. Controlla la casella di posta per il link di verifica.', 'err');
         }
@@ -346,72 +350,69 @@
       await supabase.auth.signOut();
       log('auth-log', 'Sei uscito.', 'muted');
       afterAuthUpdate();
-      // Clear lists
       $('tables').innerHTML = '';
       $('mine').innerHTML = '';
     }
 
-    // Fetch and reflect profile
+    // ===== PROFILE via RPC: update_my_profile =====
+    async function saveProfile() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return log('profile-log', 'Devi essere loggato.', 'err');
+
+      const username   = $('username').value.trim() || null;
+      const full_name  = $('profile_name').value.trim() || null;
+      const avatar_url = $('avatar_url').value.trim() || null;
+
+      // call SECURITY DEFINER RPC, which uses auth.uid() inside
+      const { error } = await supabase.rpc('update_my_profile', {
+        p_username:   username,
+        p_full_name:  full_name,
+        p_avatar_url: avatar_url
+      });
+
+      if (error) {
+        if (error.code === '23505') return log('profile-log', 'Username già in uso.', 'err');
+        return log('profile-log', error.message || String(error), 'err');
+      }
+
+      log('profile-log', 'Profilo aggiornato.', 'ok');
+      await afterAuthUpdate();
+    }
+
+    // ===== Shared auth state → UI reflection =====
     async function afterAuthUpdate() {
       const { data: { user } } = await supabase.auth.getUser();
       setBadge('auth-status', !!user);
+
       if (!user) {
         $('whoami').textContent = 'Utente: —';
-        $('role').textContent = 'Ruolo: —';
+        $('role').textContent   = 'Ruolo: —';
         return;
       }
+
       $('whoami').textContent = `Utente: ${user.email || user.id}`;
 
       // Load profile (assumes auto-provision trigger exists)
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('username, full_name, role')
+        .select('username, full_name, avatar_url, role')
         .eq('id', user.id)
         .maybeSingle();
 
       if (!error && profile) {
-        if (profile.username) $('username').value = profile.username;
-        if (profile.full_name) $('profile_name').value = profile.full_name;
-        $('role').textContent = 'Ruolo: ' + (profile.role || 'user');
+        $('username').value     = profile.username   ?? '';
+        $('profile_name').value = profile.full_name  ?? '';
+        $('avatar_url').value   = profile.avatar_url ?? '';
+        $('role').textContent   = 'Ruolo: ' + (profile.role || 'user');
       } else {
-        $('role').textContent = 'Ruolo: —';
+        $('role').textContent   = 'Ruolo: —';
       }
 
-      // Load data
       await loadTavoli();
       await loadMine();
     }
 
-    // Save profile (username + full_name); relies on "profiles: update self" policy
-    async function saveProfile() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return log('profile-log', 'Devi essere loggato.', 'err');
-
-      const username = $('username').value.trim() || null;
-      const full_name = $('profile_name').value.trim() || null;
-
-      // Update own row
-      const { error, count } = await supabase
-        .from('profiles')
-        .update({ username, full_name })
-        .eq('id', user.id)
-        .select('*', { count: 'exact', head: true });
-
-      if (error) {
-        if (error.code === '23505') return log('profile-log', 'Username già in uso.', 'err');
-        // If no row existed (e.g., trigger missing), give a clear hint
-        return log('profile-log', error.message || 'Impossibile aggiornare profilo (verifica trigger di auto-creazione).', 'err');
-      }
-
-      if (count === 0) {
-        log('profile-log', 'Profilo non presente. Riprova tra pochi secondi o contatta admin.', 'err');
-      } else {
-        log('profile-log', 'Profilo aggiornato.', 'ok');
-        await afterAuthUpdate();
-      }
-    }
-
-    // Tavoli CRUD (same as before, with session required)
+    // ===== Tavoli & Prenotazioni =====
     async function createTavolo() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return log('create-log', 'Devi essere loggato.', 'err');
@@ -531,13 +532,14 @@
     $('btn-create').onclick = createTavolo;
     $('btn-refresh').onclick = async () => { await loadTavoli(); await loadMine(); };
 
-    // React to auth changes (handles email link redirect too)
+    // React to auth changes (handles redirect after confirmation too)
     supabase.auth.onAuthStateChange(async (_event, _session) => {
       await afterAuthUpdate();
     });
 
     // First paint
     (async () => {
+      setBadge('auth-status', false);
       await afterAuthUpdate();
     })();
   </script>
