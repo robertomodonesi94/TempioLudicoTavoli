@@ -3,243 +3,265 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tempio Ludico Tavoli</title>
+  <title>Tempio Ludico — Tavoli & Prenotazioni</title>
   <meta name="description" content="Crea tavoli da gioco e prenota un posto." />
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self' https:;
+    script-src 'self' https: 'unsafe-inline';
+    style-src  'self' 'unsafe-inline';
+    img-src    https: data:;
+    connect-src 'self'
+      https://*.supabase.co wss://*.supabase.co;">
+  <meta name="theme-color" content="#ed445b">
+
+  <!-- === THEME: full-page brand background (#ed445b) + white cards === -->
   <style>
-  :root {
-    /* Brand + surfaces */
-    --bg:      #ed445b;   /* full-page background */
-    --card:    #ffffff;   /* page rectangles */
-    --ink:     #0b0f14;   /* text on white cards */
+    :root {
+      /* Brand + surfaces */
+      --bg:      #ed445b;   /* full-page background */
+      --card:    #ffffff;   /* page rectangles */
+      --ink:     #0b0f14;   /* text on white cards */
 
-    /* Text + accents */
-    --text:    #ffffff;   /* text on the red background */
-    --accent:  #ed445b;   /* brand accent (buttons/links) */
+      /* Text + accents */
+      --text:    #ffffff;   /* text on the red background */
+      --accent:  #ed445b;   /* brand accent (buttons/links) */
 
-    /* Supporting */
-    --muted:   #5b6c85;   /* muted text on white cards */
-    --danger:  #ef4444;
-    --ok:      #16a34a;
+      /* Supporting */
+      --muted:   #5b6c85;   /* muted text on white cards */
+      --danger:  #ef4444;
+      --ok:      #16a34a;
 
-    /* Borders/shadows for cards/inputs */
-    --border:  #e5e7eb;
-    --border-strong: #d1d5db;
-    --shadow:  0 6px 18px rgba(0,0,0,.12);
-  }
+      /* Borders/shadows for cards/inputs */
+      --border:  #e5e7eb;
+      --border-strong: #d1d5db;
+      --shadow:  0 6px 18px rgba(0,0,0,.12);
+    }
 
-  * { box-sizing: border-box; }
+    * { box-sizing: border-box; }
 
-  /* Full-bleed brand background with white foreground */
-  body {
-    margin:0;
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
-    background: var(--bg);
-    color: var(--text);
-  }
+    body {
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: var(--bg);
+      color: var(--text);
+    }
 
-  .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
 
-  /* Keep header readable over red background */
-  header {
-    display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom: 24px;
-    color: var(--text);
-  }
-  h1 { font-size: 22px; margin: 0; }
+    header {
+      display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom: 24px;
+      color: var(--text);
+    }
+    h1 { font-size: 22px; margin: 0; }
 
-  /* Badges sit on red bg */
-  .badge {
-    display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px;
-    background: rgba(255,255,255,0.15);
-    color: var(--text);
-    border: 1px solid rgba(255,255,255,0.35);
-  }
+    .badge {
+      display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px;
+      background: rgba(255,255,255,0.15);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.35);
+    }
 
-  /* Grid/layout unchanged */
-  .grid { display:grid; grid-template-columns: 1fr; gap:16px; }
-  @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+    a { color: var(--text); text-decoration: none; }
+    .card a, .item a { color: var(--accent); } /* links inside white cards */
 
-  /* WHITE “pages” with dark text */
-  .card {
-    background: var(--card);
-    color: var(--ink);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px;
-    box-shadow: var(--shadow);
-  }
-  .card h2 { margin-top:0; font-size: 16px; color: var(--ink); }
+    .grid { display:grid; grid-template-columns: 1fr; gap:16px; }
+    @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
 
-  /* Labels on white */
-  label { display:block; font-size: 13px; color: var(--muted); margin: 10px 0 6px; }
+    .card {
+      background: var(--card);
+      color: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    .card h2 { margin-top:0; font-size: 16px; color: var(--ink); }
 
-  /* Inputs on white cards */
-  input, select, textarea {
-    width: 100%;
-    background: #ffffff;
-    color: var(--ink);
-    border:1px solid var(--border-strong);
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 14px;
-  }
-  /* Accent focus ring */
-  input:focus, select:focus, textarea:focus {
-    outline: 2px solid var(--accent);
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(237, 68, 91, 0.22);
-  }
+    label { display:block; font-size: 13px; color: var(--muted); margin: 10px 0 6px; }
 
-  .row { display:flex; gap: 10px; flex-wrap: wrap; }
-  .row > * { flex:1; }
-  .row .shrink { flex: 0 0 auto; }
+    input, select, textarea {
+      width: 100%;
+      background: #ffffff;
+      color: var(--ink);
+      border:1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(237, 68, 91, 0.22);
+    }
 
-  /* Buttons — neutral and accent */
-  button {
-    background: #f3f4f6;
-    color: var(--ink);
-    border: 1px solid var(--border-strong);
-    border-radius: 10px;
-    padding: 10px 14px;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  button:hover { filter: brightness(0.98); }
+    .row { display:flex; gap: 10px; flex-wrap: wrap; }
+    .row > * { flex:1; }
+    .row .shrink { flex: 0 0 auto; }
 
-  /* Primary CTA with brand color */
-  .btn-accent {
-    background: var(--accent);
-    border-color: #d73c52;
-    color: #ffffff;
-  }
-  .btn-accent:hover { filter: brightness(0.96); }
+    button {
+      background: #f3f4f6;
+      color: var(--ink);
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { filter: brightness(0.98); }
 
-  /* Danger variant (on white cards) */
-  .btn-danger {
-    background: #fee2e2;
-    color: #7f1d1d;
-    border-color:#fecaca;
-  }
-  .btn-danger:hover { filter: brightness(0.98); }
+    .btn-accent {
+      background: var(--accent);
+      border-color: #d73c52;
+      color: #ffffff;
+    }
+    .btn-accent:hover { filter: brightness(0.96); }
 
-  /* Text utilities — adapt to surface */
-  .muted { color: var(--muted); }
-  .ok    { color: var(--ok); }
-  .err   { color: var(--danger); }
+    .btn-danger {
+      background: #fee2e2;
+      color: #7f1d1d;
+      border-color:#fecaca;
+    }
+    .btn-danger:hover { filter: brightness(0.98); }
 
-  /* Lists inside white cards */
-  .list { display:flex; flex-direction: column; gap:10px; margin-top: 10px; }
-  .item {
-    border:1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px;
-    background:#ffffff;
-    color: var(--ink);
-  }
-  .item h3 { margin: 0 0 8px 0; font-size: 15px; color: var(--ink); }
-  .item .meta { font-size: 12px; color: var(--muted); display:flex; gap:10px; flex-wrap:wrap; }
-  .item .actions { margin-top: 10px; display:flex; gap:10px; flex-wrap:wrap; }
+    .muted { color: var(--muted); }
+    .ok    { color: var(--ok); }
+    .err   { color: var(--danger); }
 
-  /* Code chips inside cards */
-  code.inline {
-    background: #f8fafc;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 2px 6px;
-    color: var(--ink);
-  }
+    .list { display:flex; flex-direction: column; gap:10px; margin-top: 10px; }
+    .item {
+      border:1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      background:#ffffff;
+      color: var(--ink);
+    }
+    .item h3 { margin: 0 0 8px 0; font-size: 15px; color: var(--ink); }
+    .item .meta { font-size: 12px; color: var(--muted); display:flex; gap:10px; flex-wrap:wrap; }
+    .item .actions { margin-top: 10px; display:flex; gap:10px; flex-wrap:wrap; }
 
-  footer { margin-top: 28px; font-size: 12px; color: rgba(255,255,255,0.9); }
+    code.inline {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 6px;
+      color: var(--ink);
+    }
 
-  /* Media */
-  img.thumb {
-    width:100%; height:160px; object-fit:cover; border-radius:8px;
-    border:1px solid var(--border);
-  }
-  .noimg {
-    height:160px; display:flex; align-items:center; justify-content:center;
-    border:1px dashed var(--border-strong); border-radius:8px; color: var(--muted); background:#fafafa;
-  }
+    footer { margin-top: 28px; font-size: 12px; color: rgba(255,255,255,0.9); }
 
-  /* Links: on red background they’re white; inside cards use brand color */
-  a { color: var(--text); text-decoration: none; }
-  .card a, .item a { color: var(--accent); }
+    img.thumb {
+      width:100%; height:160px; object-fit:cover; border-radius:8px;
+      border:1px solid var(--border);
+    }
+    .noimg {
+      height:160px; display:flex; align-items:center; justify-content:center;
+      border:1px dashed var(--border-strong); border-radius:8px; color: var(--muted); background:#fafafa;
+    }
 
-  /* Selection */
-  ::selection { background: rgba(255,255,255,0.35); color: #000; }
+    ::selection { background: rgba(255,255,255,0.35); color: #000; }
   </style>
-
-
-
 </head>
 <body>
   <div class="container">
     <header>
       <h1>Tempio Ludico Tavoli</h1>
       <div>
-        <span id="env-badge" class="badge">env.js: <span id="env-status">…</span></span>
-        <span id="sdk-badge" class="badge">supabase-js: <span id="sdk-status">…</span></span>
-        <span id="auth-badge" class="badge">auth: <span id="auth-status">…</span></span>
+        <span class="badge">env.js: <span id="env-status">…</span></span>
+        <span class="badge">supabase-js: <span id="sdk-status">…</span></span>
+        <span class="badge">auth: <span id="auth-status">…</span></span>
       </div>
     </header>
 
     <div class="grid">
-      <!-- Auth & Profile -->
+      <!-- AUTH: Email + Password (with verification) -->
       <section class="card">
-        <h2>Accesso & Profilo</h2>
-        <div class="muted" id="whoami">Utente: —</div>
-        <div class="row" style="margin-top:10px;">
-          <button id="btn-anon" class="btn-accent">Accedi anonimamente</button>
-          <button id="btn-signout">Esci</button>
-        </div>
+        <h2>Accesso</h2>
 
-        <label for="username">Username (univoco)</label>
         <div class="row">
-          <input id="username" placeholder="es. gamer_ale" />
-          <button id="btn-save-username" class="shrink">Salva</button>
+          <div>
+            <label for="email">Email</label>
+            <input id="email" type="email" placeholder="nome@esempio.it" autocomplete="email" />
+          </div>
+          <div>
+            <label for="password">Password</label>
+            <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+          </div>
         </div>
-        <div class="muted" id="admin-flag">Ruolo: utente</div>
 
-        <div style="margin-top:10px;">
-          <button id="btn-copy-id">Copia il mio user_id</button>
+        <div class="row" style="margin-top:8px;">
+          <div>
+            <label for="full_name">Nome completo (facoltativo)</label>
+            <input id="full_name" type="text" placeholder="Mario Rossi" autocomplete="name" />
+          </div>
+          <div class="row">
+            <button id="btn-signup" class="btn-accent">Registrati</button>
+            <button id="btn-signin">Entra</button>
+            <button id="btn-signout" class="btn-danger">Esci</button>
+          </div>
         </div>
 
-        <div id="auth-log" class="muted"></div>
+        <div id="auth-log" class="muted" style="margin-top:8px;"></div>
+
+        <div class="row" style="margin-top:10px;">
+          <div class="muted" id="whoami">Utente: —</div>
+          <div class="muted" id="role">Ruolo: —</div>
+        </div>
       </section>
 
-      <!-- Create Tavolo -->
+      <!-- PROFILE: username / name -->
       <section class="card">
-        <h2>Crea un tavolo</h2>
-        <label for="title">Titolo</label>
-        <input id="title" placeholder="Nome del gioco / sessione" />
-
+        <h2>Profilo</h2>
         <div class="row">
           <div>
-            <label for="complexity">Complessità</label>
-            <select id="complexity">
-              <option value="1">1 (molto semplice)</option>
-              <option value="2">2 (semplice)</option>
-              <option value="3" selected>3 (medio)</option>
-              <option value="4">4 (complesso)</option>
-              <option value="5">5 (molto complesso)</option>
-            </select>
+            <label for="username">Username</label>
+            <input id="username" placeholder="handle univoco (3–32)" />
           </div>
           <div>
-            <label for="image_url">URL immagine (opzionale)</label>
-            <input id="image_url" placeholder="URL pubblico (es. bucket 'tavoli' pubblico)" />
+            <label for="profile_name">Nome visualizzato</label>
+            <input id="profile_name" placeholder="es. Mario Rossi" />
           </div>
         </div>
-
-        <div style="margin-top:10px;">
-          <button id="btn-create" class="btn-accent">Crea tavolo</button>
+        <div class="row" style="margin-top:8px;">
+          <button id="btn-save-profile" class="btn-accent">Salva profilo</button>
         </div>
-        <div id="create-log" class="muted"></div>
+        <div id="profile-log" class="muted" style="margin-top:8px;"></div>
       </section>
     </div>
 
+    <!-- CREATE TAVOLO -->
+    <section class="card" style="margin-top:16px;">
+      <h2>Crea un tavolo</h2>
+      <label for="title">Titolo</label>
+      <input id="title" placeholder="Nome del gioco / sessione" />
+
+      <div class="row">
+        <div>
+          <label for="complexity">Complessità</label>
+          <select id="complexity">
+            <option value="1">1 (molto semplice)</option>
+            <option value="2">2 (semplice)</option>
+            <option value="3" selected>3 (medio)</option>
+            <option value="4">4 (complesso)</option>
+            <option value="5">5 (molto complesso)</option>
+          </select>
+        </div>
+        <div>
+          <label for="image_url">URL immagine (opzionale)</label>
+          <input id="image_url" placeholder="URL pubblico (es. da bucket 'tavoli')" />
+        </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <button id="btn-create" class="btn-accent">Crea tavolo</button>
+      </div>
+      <div id="create-log" class="muted" style="margin-top:8px;"></div>
+    </section>
+
+    <!-- LIST + MIE PRENOTAZIONI -->
     <section class="card" style="margin-top:16px;">
       <div class="row" style="align-items:center;">
         <h2 style="flex:1;">Elenco tavoli</h2>
-        <button id="btn-refresh" class="shrink">Aggiorna</button>
+        <button id="btn-refresh">Aggiorna</button>
       </div>
       <div id="tables" class="list"></div>
       <div id="tables-log" class="muted"></div>
@@ -255,211 +277,240 @@
     </footer>
   </div>
 
-  <!-- 1) Variabili pubbliche; deve definire window.SUPABASE_URL e window.SUPABASE_ANON_KEY -->
-  <script src="/env.js"></script>
+  <!-- Public runtime config -->
+  <script src="/env.js?v=7"></script>
 
-  <!-- 2) App + Supabase via ES Module -->
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-    // ---- Guard per env ----
-    if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
-      throw new Error("Missing SUPABASE_URL o SUPABASE_ANON_KEY da /env.js");
-    }
+    // Badges
+    const setBadge = (id, ok) => {
+      const el = document.querySelector('#' + id);
+      if (el) el.textContent = ok ? 'OK' : 'errore';
+    };
+    setBadge('env-status', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
+    setBadge('sdk-status', true);
 
-    // ---- Singleton Supabase client ----
-    window.supabase = window.supabase ?? createClient(
-      window.SUPABASE_URL,
-      window.SUPABASE_ANON_KEY,
-      { auth: { storageKey: "sb-tempioludico", autoRefreshToken: true, persistSession: true, detectSessionInUrl: true } }
-    );
+    // Supabase client
+    const supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+      auth: { storageKey: 'sb-tempioludico', autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
+    });
+    window.supabase = supabase; // handy for console
 
-    // ---- Badge stato ----
-    document.getElementById('env-status').textContent = 'OK';
-    document.getElementById('env-badge').style.borderColor = '#2c6fb6';
-    document.getElementById('sdk-status').textContent = 'OK';
-    document.getElementById('sdk-badge').style.borderColor = '#2c6fb6';
-
-    // === Helpers ===
+    // DOM helpers
     const $ = (id) => document.getElementById(id);
     const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
+    const log = (id, msg, cls='muted') => { const el=$(id); if(el){ el.className=cls; el.textContent=msg; } };
 
-    function showError(elId, err) {
-      const el = $(elId);
-      el.className = 'err';
-      el.textContent = (err && err.message) ? err.message : String(err);
-    }
-    function showOk(elId, msg) {
-      const el = $(elId);
-      el.className = 'ok';
-      el.textContent = msg;
+    // AUTH UI handlers (Email + Password)
+    async function signUpEmailPassword() {
+      log('auth-log', '');
+      const email = $('email').value.trim();
+      const password = $('password').value;
+      const full_name = $('full_name').value.trim();
+
+      if (!email || !password) { return log('auth-log', 'Email e password sono obbligatorie.', 'err'); }
+
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin + '/',
+          data: { full_name }
+        }
+      });
+      if (error) return log('auth-log', error.message || String(error), 'err');
+
+      log('auth-log', 'Registrazione effettuata. Controlla la tua email per confermare l’account.', 'ok');
     }
 
-    // === Auth/session ===
-    async function ensureSession() {
-      const { data: { session } } = await window.supabase.auth.getSession();
-      if (!session) {
-        const { error } = await window.supabase.auth.signInAnonymously();
-        if (error) throw error;
+    async function signInEmailPassword() {
+      log('auth-log', '');
+      const email = $('email').value.trim();
+      const password = $('password').value;
+      if (!email || !password) { return log('auth-log', 'Email e password sono obbligatorie.', 'err'); }
+
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        // Common case: email non confermata
+        if ((error.message || '').toLowerCase().includes('confirm') || error.status === 400) {
+          return log('auth-log', 'Email non confermata. Controlla la casella di posta per il link di verifica.', 'err');
+        }
+        return log('auth-log', error.message || String(error), 'err');
       }
+      log('auth-log', 'Accesso riuscito.', 'ok');
+      await afterAuthUpdate();
     }
 
-    async function refreshAuthUI() {
-      const { data: { user } } = await window.supabase.auth.getUser();
-      const el = $('whoami');
-      const authStatus = $('auth-status');
+    async function signOut() {
+      await supabase.auth.signOut();
+      log('auth-log', 'Sei uscito.', 'muted');
+      afterAuthUpdate();
+      // Clear lists
+      $('tables').innerHTML = '';
+      $('mine').innerHTML = '';
+    }
 
+    // Fetch and reflect profile
+    async function afterAuthUpdate() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setBadge('auth-status', !!user);
       if (!user) {
-        el.textContent = 'Utente: —';
-        authStatus.textContent = 'non autenticato';
-        $('auth-badge').style.borderColor = '#7a2e2e';
+        $('whoami').textContent = 'Utente: —';
+        $('role').textContent = 'Ruolo: —';
         return;
       }
-      authStatus.textContent = 'OK';
-      $('auth-badge').style.borderColor = '#2c6fb6';
-      el.textContent = `Utente: ${user.id}`;
+      $('whoami').textContent = `Utente: ${user.email || user.id}`;
 
-      // carica profilo (id == auth.users.id)
-      const { data, error } = await window.supabase
+      // Load profile (assumes auto-provision trigger exists)
+      const { data: profile, error } = await supabase
         .from('profiles')
-        .select('username, role')
+        .select('username, full_name, role')
         .eq('id', user.id)
         .maybeSingle();
 
-      if (!error && data) {
-        if (data.username) $('username').value = data.username;
-        const isAdmin = data.role === 'admin';
-        $('admin-flag').textContent = `Ruolo: ${isAdmin ? 'admin' : 'utente'}`;
-        $('admin-flag').className = isAdmin ? 'ok' : 'muted';
+      if (!error && profile) {
+        if (profile.username) $('username').value = profile.username;
+        if (profile.full_name) $('profile_name').value = profile.full_name;
+        $('role').textContent = 'Ruolo: ' + (profile.role || 'user');
       } else {
-        $('admin-flag').textContent = 'Ruolo: utente';
-        $('admin-flag').className = 'muted';
+        $('role').textContent = 'Ruolo: —';
       }
+
+      // Load data
+      await loadTavoli();
+      await loadMine();
     }
 
-    async function saveUsername() {
-      const { data: { user } } = await window.supabase.auth.getUser();
-      if (!user) return showError('auth-log', 'Nessuna sessione utente.');
-      const username = $('username').value.trim();
-      if (!/^[a-zA-Z0-9_-]{3,32}$/.test(username)) return showError('auth-log', 'Username non valido (3–32, alfanumerico/_-).');
+    // Save profile (username + full_name); relies on "profiles: update self" policy
+    async function saveProfile() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return log('profile-log', 'Devi essere loggato.', 'err');
 
-      // Usa RPC che lega id = auth.uid() e gestisce unique/UPSERT
-      const { error } = await window.supabase.rpc('set_username', { new_username: username });
+      const username = $('username').value.trim() || null;
+      const full_name = $('profile_name').value.trim() || null;
+
+      // Update own row
+      const { error, count } = await supabase
+        .from('profiles')
+        .update({ username, full_name })
+        .eq('id', user.id)
+        .select('*', { count: 'exact', head: true });
+
       if (error) {
-        if (error.code === '23505') return showError('auth-log', 'Username già in uso.');
-        return showError('auth-log', error);
+        if (error.code === '23505') return log('profile-log', 'Username già in uso.', 'err');
+        // If no row existed (e.g., trigger missing), give a clear hint
+        return log('profile-log', error.message || 'Impossibile aggiornare profilo (verifica trigger di auto-creazione).', 'err');
       }
-      showOk('auth-log', 'Username salvato.');
-      refreshAuthUI();
+
+      if (count === 0) {
+        log('profile-log', 'Profilo non presente. Riprova tra pochi secondi o contatta admin.', 'err');
+      } else {
+        log('profile-log', 'Profilo aggiornato.', 'ok');
+        await afterAuthUpdate();
+      }
     }
 
-    // === Tavoli & Prenotazioni ===
+    // Tavoli CRUD (same as before, with session required)
     async function createTavolo() {
-      const { data: { user } } = await window.supabase.auth.getUser();
-      if (!user) return showError('create-log', 'Nessuna sessione utente.');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return log('create-log', 'Devi essere loggato.', 'err');
 
       const title = $('title').value.trim();
       const complexity = Number($('complexity').value);
       const image_url = $('image_url').value.trim();
 
-      if (!title) return showError('create-log', 'Titolo obbligatorio.');
-      if (Number.isNaN(complexity) || complexity < 1 || complexity > 5) return showError('create-log', 'Complessità 1–5.');
+      if (!title) return log('create-log', 'Titolo obbligatorio.', 'err');
+      if (Number.isNaN(complexity) || complexity < 1 || complexity > 5) return log('create-log', 'Complessità 1–5.', 'err');
 
-      // Trigger set_creator_id() imposta creator_id = auth.uid()
-      const insert = { title, complexity };
-      if (image_url) insert.image_url = image_url;
+      const payload = { title, complexity };
+      if (image_url) payload.image_url = image_url;
 
-      const { error } = await window.supabase.from('tavoli').insert(insert);
-      if (error) return showError('create-log', error);
+      const { error } = await supabase.from('tavoli').insert(payload);
+      if (error) return log('create-log', error.message || String(error), 'err');
 
-      showOk('create-log', 'Tavolo creato.');
+      log('create-log', 'Tavolo creato.', 'ok');
       $('title').value = '';
       $('image_url').value = '';
       $('complexity').value = '3';
       await loadTavoli();
     }
 
-    async function reserve(tavoloId) {
-      // Trigger set_res_user() imposta user_id = auth.uid()
-      const { error } = await window.supabase
-        .from('reservations')
-        .insert({ tavolo_id: tavoloId });
-      if (error) throw error;
-    }
-
-    async function loadTavoli() {
-      const list = $('tables');
-      list.innerHTML = '';
-      const { data, error } = await window.supabase
+    async function listTavoli() {
+      const { data, error } = await supabase
         .from('tavoli_view')
         .select('id,title,complexity,image_url,created_at,reservations_count')
         .order('created_at', { ascending: false })
         .limit(100);
+      if (error) throw error;
+      return data || [];
+    }
 
-      if (error) { showError('tables-log', error); return; }
-      showOk('tables-log', `${data.length} tavoli.`);
+    async function reserve(tavoloId) {
+      const { error } = await supabase.from('reservations').insert({ tavolo_id: tavoloId });
+      if (error) throw error;
+    }
 
-      for (const t of data) {
-        const item = document.createElement('div');
-        item.className = 'item';
-
-        const img = t.image_url
-          ? `<img class="thumb" src="${t.image_url}" alt="${t.title}">`
-          : `<div class="noimg muted">Nessuna immagine</div>`;
-
-        item.innerHTML = `
-          ${img}
-          <h3 style="margin-top:8px;">${t.title}</h3>
-          <div class="meta">
-            <span>Complessità: ${t.complexity}</span>
-            <span>Prenotazioni: ${t.reservations_count ?? 0}</span>
-            <span>Creato: ${fmt(t.created_at)}</span>
-          </div>
-          <div class="actions">
-            <button data-act="reserve">Prenota</button>
-          </div>
-        `;
-        item.querySelector('[data-act="reserve"]').onclick = async () => {
-          try {
-            await reserve(t.id);
-            await loadTavoli();
-            await loadMine();
-          } catch (e) {
-            alert('Errore prenotazione: ' + (e.message || e));
-          }
-        };
-        list.appendChild(item);
-      }
-
-      if (data.length === 0) {
-        list.innerHTML = '<div class="muted">Nessun tavolo creato.</div>';
+    async function loadTavoli() {
+      const host = $('tables');
+      host.innerHTML = '';
+      try {
+        const items = await listTavoli();
+        for (const t of items) {
+          const div = document.createElement('div');
+          div.className = 'item';
+          div.innerHTML = `
+            ${t.image_url ? `<img class="thumb" src="${t.image_url}" alt="${t.title}">` : `<div class="noimg">Nessuna immagine</div>`}
+            <h3 style="margin-top:8px;">${t.title}</h3>
+            <div class="meta">
+              <span>Complessità: ${t.complexity}</span>
+              <span>Prenotazioni: ${t.reservations_count ?? 0}</span>
+              <span>Creato: ${fmt(t.created_at)}</span>
+            </div>
+            <div class="actions">
+              <button data-act="reserve" class="btn-accent">Prenota</button>
+            </div>
+          `;
+          div.querySelector('[data-act="reserve"]').onclick = async () => {
+            try {
+              await reserve(t.id);
+              await loadTavoli();
+              await loadMine();
+            } catch (e) {
+              alert('Errore prenotazione: ' + (e.message || e));
+            }
+          };
+          host.appendChild(div);
+        }
+        if (!items.length) host.innerHTML = '<div class="muted">Nessun tavolo creato.</div>';
+        log('tables-log', `${items.length} tavoli.`, 'muted');
+      } catch (e) {
+        log('tables-log', e.message || String(e), 'err');
       }
     }
 
     async function loadMine() {
       const host = $('mine');
       host.innerHTML = '';
-      const { data: { user } } = await window.supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Le policy permettono di leggere SOLO le proprie prenotazioni
-      const { data: myRes, error } = await window.supabase
+      const { data: myRes, error } = await supabase
         .from('reservations')
         .select('tavolo_id, created_at')
         .order('created_at', { ascending:false });
-
       if (error) return;
 
-      if (!myRes.length) { host.innerHTML = '<div class="muted">Nessuna prenotazione.</div>'; return; }
+      if (!myRes.length) {
+        host.innerHTML = '<div class="muted">Nessuna prenotazione.</div>';
+        return;
+      }
 
-      const ids = myRes.map(r => r.tavolo_id);
-      const { data: tavoli } = await window.supabase
-        .from('tavoli')
-        .select('id,title')
-        .in('id', ids);
+      const ids = [...new Set(myRes.map(r => r.tavolo_id))];
+      const { data: tavoli } = await supabase.from('tavoli').select('id,title').in('id', ids);
 
       for (const r of myRes) {
-        const t = tavoli.find(x => x.id === r.tavolo_id);
+        const t = tavoli?.find(x => x.id === r.tavolo_id);
         const div = document.createElement('div');
         div.className = 'item';
         div.innerHTML = `
@@ -467,75 +518,28 @@
           <div class="meta">
             <span>Prenotato: ${fmt(r.created_at)}</span>
           </div>
-          <div class="actions">
-            <button class="btn-danger" data-act="cancel">Annulla</button>
-          </div>
         `;
-        div.querySelector('[data-act="cancel"]').onclick = async () => {
-          // Le policy consentono di eliminare SOLO le proprie righe
-          await window.supabase
-            .from('reservations')
-            .delete()
-            .eq('tavolo_id', r.tavolo_id);
-          await loadTavoli();
-          await loadMine();
-        };
         host.appendChild(div);
       }
     }
 
-    // === Event bindings ===
-    $('btn-anon').onclick = async () => {
-      try {
-        await window.supabase.auth.signInAnonymously();
-        await refreshAuthUI();
-        await loadTavoli();
-        await loadMine();
-      } catch (e) { showError('auth-log', e); }
-    };
-
-    $('btn-signout').onclick = async () => {
-      await window.supabase.auth.signOut();
-      await refreshAuthUI();
-      $('tables').innerHTML = '';
-      $('mine').innerHTML = '';
-    };
-
-    $('btn-save-username').onclick = async () => {
-      try {
-        await ensureSession();
-        await saveUsername();
-      } catch (e) {
-        showError('auth-log', e);
-      }
-    };
-
-    $('btn-create').onclick = async () => {
-      try {
-        await ensureSession();
-        await createTavolo();
-      } catch (e) {
-        showError('create-log', e);
-      }
-    };
-
+    // Wire events
+    $('btn-signup').onclick = signUpEmailPassword;
+    $('btn-signin').onclick = signInEmailPassword;
+    $('btn-signout').onclick = signOut;
+    $('btn-save-profile').onclick = saveProfile;
+    $('btn-create').onclick = createTavolo;
     $('btn-refresh').onclick = async () => { await loadTavoli(); await loadMine(); };
-    $('btn-copy-id').onclick = async () => {
-      const { data: { user } } = await window.supabase.auth.getUser();
-      if (!user) return;
-      await navigator.clipboard.writeText(user.id);
-      alert('User ID copiato negli appunti:\n' + user.id);
-    };
 
-    // === Boot ===
-    try {
-      await ensureSession();
-      await refreshAuthUI();
-      await loadTavoli();
-      await loadMine();
-    } catch (e) {
-      showError('auth-log', e);
-    }
+    // React to auth changes (handles email link redirect too)
+    supabase.auth.onAuthStateChange(async (_event, _session) => {
+      await afterAuthUpdate();
+    });
+
+    // First paint
+    (async () => {
+      await afterAuthUpdate();
+    })();
   </script>
 </body>
 </html>
