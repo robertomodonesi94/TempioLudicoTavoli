@@ -34,7 +34,7 @@
     h1 { font-size: 22px; margin: 0; }
     .badge { display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; background: rgba(255,255,255,0.15); color: var(--text); border: 1px solid rgba(255,255,255,0.35); }
     a { color: var(--text); text-decoration: none; }
-    .card a, .item a { color: var(--accent); } /* links inside white cards */
+    .card a, .item a { color: var(--accent); }
     .grid { display:grid; grid-template-columns: 1fr; gap:16px; }
     @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
     .card { background: var(--card); color: var(--ink); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
@@ -64,10 +64,9 @@
     img.thumb { width:100%; height:160px; object-fit:cover; border-radius:8px; border:1px solid var(--border); }
     .noimg { height:160px; display:flex; align-items:center; justify-content:center; border:1px dashed var(--border-strong); border-radius:8px; color: var(--muted); background:#fafafa; }
 
-    /* ---------- Auth-gating ---------- */
-    /* hide all app sections until authenticated */
+    /* Auth-gating */
     .requires-auth { display: none; }
-    .visible { display: block !important; } /* helper class toggled by JS */
+    .visible { display: block !important; }
   </style>
 </head>
 <body>
@@ -81,7 +80,7 @@
       </div>
     </header>
 
-    <!-- LOGIN SECTION (always visible until authenticated) -->
+    <!-- LOGIN SECTION (only visible until authenticated) -->
     <section id="auth-section" class="card">
       <h2>Accesso</h2>
 
@@ -97,10 +96,6 @@
       </div>
 
       <div class="row" style="margin-top:8px;">
-        <div>
-          <label for="full_name">Nome completo (facoltativo)</label>
-          <input id="full_name" type="text" placeholder="Mario Rossi" autocomplete="name" />
-        </div>
         <div class="row">
           <button id="btn-signup" class="btn-accent">Registrati</button>
           <button id="btn-signin">Entra</button>
@@ -127,10 +122,6 @@
               <label for="username">Username</label>
               <input id="username" placeholder="handle univoco (3–32)" />
             </div>
-            <div>
-              <label for="profile_name">Nome visualizzato</label>
-              <input id="profile_name" placeholder="es. Mario Rossi" />
-            </div>
           </div>
           <div class="row" style="margin-top:8px;">
             <div>
@@ -143,8 +134,6 @@
           </div>
           <div id="profile-log" class="muted" style="margin-top:8px;"></div>
         </section>
-
-        <!-- (You can add another card in the first row if needed) -->
       </div>
 
       <!-- CREATE TAVOLO -->
@@ -198,7 +187,7 @@
   </div>
 
   <!-- Public runtime config -->
-  <script src="/env.js?v=9"></script>
+  <script src="/env.js?v=10"></script>
 
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -237,7 +226,8 @@
       const app = $('app-sections');
       if (authCard) authCard.style.display = isAuthed ? 'none' : 'block';
       setVisible(app, !!isAuthed);
-      setBadge('auth-status', !!isAuthed);
+      const badge = document.querySelector('#auth-status');
+      if (badge) badge.textContent = isAuthed ? 'OK' : 'errore';
     }
 
     // ===== AUTH: Email + Password =====
@@ -245,13 +235,12 @@
       log('auth-log', '');
       const email = $('email').value.trim();
       const password = $('password').value;
-      const full_name = $('full_name').value.trim();
       if (!email || !password) { return log('auth-log', 'Email e password sono obbligatorie.', 'err'); }
 
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: window.location.origin + '/', data: { full_name } }
+        options: { emailRedirectTo: window.location.origin + '/' }
       });
       if (error) return log('auth-log', error.message || String(error), 'err');
       log('auth-log', 'Registrazione effettuata. Controlla la tua email per confermare l’account.', 'ok');
@@ -285,18 +274,17 @@
       $('role').textContent = 'Ruolo: —';
     }
 
-    // ===== PROFILE via RPC: update_my_profile =====
+    // ===== PROFILE via RPC: update_my_profile (no full_name) =====
     async function saveProfile() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return log('profile-log', 'Devi essere loggato.', 'err');
 
       const username   = $('username').value.trim() || null;
-      const full_name  = $('profile_name').value.trim() || null;
       const avatar_url = $('avatar_url').value.trim() || null;
 
       const { error } = await supabase.rpc('update_my_profile', {
         p_username:   username,
-        p_full_name:  full_name,
+        p_full_name:  null,        // intentionally not supported in UI
         p_avatar_url: avatar_url
       });
 
@@ -313,20 +301,18 @@
     async function afterAuthUpdate() {
       const { data: { user } } = await supabase.auth.getUser();
       showAppForUser(!!user);
-
       if (!user) return;
 
       $('whoami').textContent = `Utente: ${user.email || user.id}`;
 
-      // Load profile
+      // Load profile (no full_name field used)
       const { data: profile } = await supabase
         .from('profiles')
-        .select('username, full_name, avatar_url, role')
+        .select('username, avatar_url, role')
         .eq('id', user.id)
         .maybeSingle();
 
       $('username').value     = profile?.username   ?? '';
-      $('profile_name').value = profile?.full_name  ?? '';
       $('avatar_url').value   = profile?.avatar_url ?? '';
       $('role').textContent   = 'Ruolo: ' + (profile?.role || 'user');
 
@@ -452,16 +438,17 @@
     $('btn-create').onclick = createTavolo;
     $('btn-refresh').onclick = async () => { await loadTavoli(); await loadMine(); };
 
-    // React to auth changes (handles redirect after email confirm)
+    // React to auth changes
     supabase.auth.onAuthStateChange(async (_event, _session) => {
       await afterAuthUpdate();
     });
 
     // First paint
     (async () => {
-      setBadge('auth-status', false);
+      const badge = document.querySelector('#auth-status');
+      if (badge) badge.textContent = 'errore';
       showAppForUser(false);  // hide app until we confirm session
-      await afterAuthUpdate(); // will reveal app if already logged in
+      await afterAuthUpdate(); // shows app if already logged in
     })();
   </script>
 </body>
