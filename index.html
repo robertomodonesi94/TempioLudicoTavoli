@@ -124,7 +124,7 @@
     </div>
   </div>
 
-  <!-- public keys (unchanged) -->
+  <!-- public keys -->
   <script src="/env.js"></script>
 
   <!-- app -->
@@ -166,7 +166,6 @@
       return session?.user || null;
     }
 
-    // REST ping for deterministic Network traffic
     async function pingRest(){
       const s = await supabase.auth.getSession();
       const token = s?.data?.session?.access_token;
@@ -176,7 +175,7 @@
       return { ok: res.ok, status: res.status };
     }
 
-    // AUTH actions
+    // AUTH
     async function signUp(){
       log('auth-log','');
       const email=$('email').value.trim(), password=$('password').value;
@@ -220,24 +219,24 @@
       $('role').textContent = 'Ruolo: ' + (data?.role || 'user');
       $('whoami').textContent = 'Utente: ' + (user.email || user.id);
     }
+
     async function saveProfile(){
       await pingRest();
       const user = await getSessionUser(); if (!user) return log('profile-log','Login required');
+
       const username = $('username').value.trim() || null;
 
-      // try RPC first
-      let { error } = await supabase.rpc('update_my_profile', { p_username: username, p_full_name: null, p_avatar_url: null });
-      if (error){
-        const u = await supabase.from('profiles')
-          .update({ username, updated_at: new Date().toISOString() })
-          .eq('id', user.id);
-        if (u.error) return log('profile-log', u.error.message || String(u.error));
-      }
+      // single statement, no RPC, no updated_at
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({ id: user.id, username }, { onConflict: 'id' });
+
+      if (error) return log('profile-log', error.message || String(error));
       await loadProfile();
       log('profile-log','Profile saved');
     }
 
-    // DATA (tavoli + reservations)
+    // DATA
     function renderTableItem(t){
       return `
         ${t.image_url ? `<img class="thumb" src="${t.image_url}" alt="${t.title}" />` : `<div class="noimg">No image</div>`}
@@ -309,7 +308,6 @@
       await loadMine();
     }
 
-    // bind buttons
     function bind(){
       const map = new Map([
         ['btn-signup',        signUp],
@@ -328,7 +326,6 @@
       }
     }
 
-    // initial state
     (async ()=>{
       bind();
       const { data: { session} } = await supabase.auth.getSession();
