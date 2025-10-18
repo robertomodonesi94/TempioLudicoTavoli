@@ -44,7 +44,6 @@
       </div>
     </header>
 
-    <!-- AUTH -->
     <section id="auth" class="card">
       <h2>Accesso</h2>
       <div class="row">
@@ -70,7 +69,6 @@
       </div>
     </section>
 
-    <!-- APP -->
     <div id="app" class="hidden" aria-hidden="true">
       <div class="grid">
         <section class="card">
@@ -124,24 +122,18 @@
     </div>
   </div>
 
-  <!-- public keys -->
   <script src="/env.js"></script>
 
-  <!-- app -->
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-    // badges
     const setBadge = (id, ok) => { const el=document.getElementById(id); if (el) el.textContent = ok ? 'OK' : 'err'; };
     setBadge('env-ok', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
     setBadge('sdk-ok', true);
 
-    // singleton client
     const SB_OPTS = { auth: { storageKey: 'sb-tempioludico-web-v1', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
     window.__supabase ??= createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, SB_OPTS);
     window.supabase = window.__supabase;
 
-    // single auth listener
     window.__sbAuthSub?.unsubscribe?.();
     window.__sbAuthSub = supabase.auth.onAuthStateChange((event, session) => {
       console.log('auth:', event, session?.user?.id || null);
@@ -149,7 +141,6 @@
       if (session) bootData().catch(console.error);
     }).data.subscription;
 
-    // helpers
     const $ = (id) => document.getElementById(id);
     const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
     const log = (id, msg, cls='muted') => { const el=$(id); if(el){ el.className=cls; el.textContent=msg; } };
@@ -219,16 +210,11 @@
       $('role').textContent = 'Ruolo: ' + (data?.role || 'user');
       $('whoami').textContent = 'Utente: ' + (user.email || user.id);
     }
-
     async function saveProfile(){
       await pingRest();
       const user = await getSessionUser(); if (!user) return log('profile-log','Login required');
       const username = $('username').value.trim() || null;
-
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({ id: user.id, username }, { onConflict: 'id' });
-
+      const { error } = await supabase.from('profiles').upsert({ id: user.id, username }, { onConflict: 'id' });
       if (error) return log('profile-log', error.message || String(error));
       await loadProfile();
       log('profile-log','Profile saved');
@@ -255,15 +241,36 @@
       log('create-log','Table created');
       await loadTavoli(); await loadMine();
     }
-    async function listTavoli(){
-      const { data, error } = await supabase.from('tavoli_view')
+
+    // --- list with client-side dedupe ---
+    async function listTavoliRaw(){
+      const { data, error } = await supabase
+        .from('tavoli_view')
         .select('id,title,complexity,image_url,created_at,reservations_count')
-        .order('created_at',{ascending:false}).limit(100);
+        .order('created_at',{ascending:false})
+        .limit(200);
       if (!error && data) return data;
-      const fb = await supabase.from('tavoli').select('id,title,complexity,image_url,created_at').order('created_at',{ascending:false}).limit(100);
+
+      const fb = await supabase
+        .from('tavoli')
+        .select('id,title,complexity,image_url,created_at')
+        .order('created_at',{ascending:false})
+        .limit(200);
       if (fb.error) throw fb.error;
       return fb.data || [];
     }
+    function dedupeById(rows){
+      const map = new Map();
+      for (const r of rows){
+        if (!map.has(r.id)) map.set(r.id, r);
+      }
+      return Array.from(map.values());
+    }
+    async function listTavoli(){
+      const raw = await listTavoliRaw();
+      return dedupeById(raw);
+    }
+
     async function loadTavoli(){
       const host = $('tables'); host.innerHTML='';
       try{
@@ -285,13 +292,11 @@
       }catch(e){ log('tables-log', e.message || String(e)); }
     }
 
-    // --- Delete own reservations ---
     async function deleteReservation(id){
       await pingRest();
       const { error } = await supabase.from('reservations').delete().eq('id', id);
       if (error) throw error;
     }
-
     async function loadMine(){
       const host=$('mine'); host.innerHTML='';
       const { data, error } = await supabase
