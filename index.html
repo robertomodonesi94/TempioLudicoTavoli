@@ -126,6 +126,7 @@
 
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
     const setBadge = (id, ok) => { const el=document.getElementById(id); if (el) el.textContent = ok ? 'OK' : 'err'; };
     setBadge('env-ok', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
     setBadge('sdk-ok', true);
@@ -151,12 +152,10 @@
       $('app').setAttribute('aria-hidden', String(!isAuthed));
       setBadge('auth-ok', isAuthed);
     }
-
     async function getSessionUser(){
       const { data: { session } } = await supabase.auth.getSession();
       return session?.user || null;
     }
-
     async function pingRest(){
       const s = await supabase.auth.getSession();
       const token = s?.data?.session?.access_token;
@@ -220,15 +219,43 @@
       log('profile-log','Profile saved');
     }
 
-    // DATA
+    // DATA — no view, no duplicates
     function renderTableItem(t){
       return `
         ${t.image_url ? `<img class="thumb" src="${t.image_url}" alt="${t.title}" />` : `<div class="noimg">No image</div>`}
         <h3 style="margin:8px 0 6px 0">${t.title}</h3>
-        <div class="meta"><span>Complexity: ${t.complexity}</span><span>Created: ${fmt(t.created_at)}</span><span>Bookings: ${t.reservations_count ?? 0}</span></div>
+        <div class="meta"><span>Complexity: ${t.complexity}</span><span>Created: ${fmt(t.created_at)}</span><span>Bookings: ${t.reservations_count}</span></div>
         <div class="row" style="margin-top:8px"><button class="btn-accent" data-act="reserve" data-id="${t.id}" type="button">Prenota</button></div>
       `;
     }
+
+    async function fetchTavoli(){
+      const { data, error } = await supabase
+        .from('tavoli')
+        .select('id,title,complexity,image_url,created_at')
+        .order('created_at',{ascending:false})
+        .limit(200);
+      if (error) throw error;
+      return data || [];
+    }
+    async function fetchReservationCounts(){
+      // pull only ids and count client-side to avoid duplication
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('tavolo_id'); // RLS should already scope to user if needed, else returns all
+      if (error) throw error;
+      const m = new Map();
+      for (const r of (data || [])) m.set(r.tavolo_id, (m.get(r.tavolo_id) || 0) + 1);
+      return m;
+    }
+    async function listTavoliWithCounts(){
+      const [tavoli, counts] = await Promise.all([fetchTavoli(), fetchReservationCounts()]);
+      // ensure uniqueness by id
+      const seen = new Set();
+      return tavoli.filter(t => !seen.has(t.id) && seen.add(t.id))
+                   .map(t => ({ ...t, reservations_count: counts.get(t.id) || 0 }));
+    }
+
     async function createTavolo(){
       await pingRest();
       const title=$('title').value.trim(); const complexity=Number($('complexity').value); const image_url=$('image_url').value.trim();
@@ -242,39 +269,10 @@
       await loadTavoli(); await loadMine();
     }
 
-    // --- list with client-side dedupe ---
-    async function listTavoliRaw(){
-      const { data, error } = await supabase
-        .from('tavoli_view')
-        .select('id,title,complexity,image_url,created_at,reservations_count')
-        .order('created_at',{ascending:false})
-        .limit(200);
-      if (!error && data) return data;
-
-      const fb = await supabase
-        .from('tavoli')
-        .select('id,title,complexity,image_url,created_at')
-        .order('created_at',{ascending:false})
-        .limit(200);
-      if (fb.error) throw fb.error;
-      return fb.data || [];
-    }
-    function dedupeById(rows){
-      const map = new Map();
-      for (const r of rows){
-        if (!map.has(r.id)) map.set(r.id, r);
-      }
-      return Array.from(map.values());
-    }
-    async function listTavoli(){
-      const raw = await listTavoliRaw();
-      return dedupeById(raw);
-    }
-
     async function loadTavoli(){
       const host = $('tables'); host.innerHTML='';
       try{
-        const items = await listTavoli();
+        const items = await listTavoliWithCounts();
         for (const t of items){
           const el = document.createElement('div');
           el.className = 'item';
