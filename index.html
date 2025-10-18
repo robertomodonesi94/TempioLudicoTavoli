@@ -189,7 +189,7 @@
       }
     }).data.subscription;
 
-    // ---------- PROFILE ----------
+    // ---------- PROFILE FUNZIONA----------
     async function loadProfile(){
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
