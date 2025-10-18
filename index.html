@@ -238,46 +238,67 @@
 
     // ===== PROFILE via RPC (no full_name) =====
     async function saveProfile() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) { log('profile-log', 'Devi essere loggato.', 'err'); return; }
+  console.log('[saveProfile] start');
 
-  const username   = document.getElementById('username').value.trim() || null;
-  const avatar_url = document.getElementById('avatar_url').value.trim() || null;
-
-  console.debug('rpc:update_my_profile ->', { p_username: username, p_full_name: null, p_avatar_url: avatar_url });
-
-  const { data, error } = await supabase.rpc('update_my_profile', {
-    p_username:   username,
-    p_full_name:  null,
-    p_avatar_url: avatar_url
-  });
-
-  if (error) {
-    console.error('rpc error:', error);
-    if (error.code === '23505') {
-      log('profile-log', 'Username già in uso.', 'err');
-    } else {
-      log('profile-log', error.message || String(error), 'err');
+  try {
+    const { data: authRes, error: authErr } = await supabase.auth.getUser();
+    if (authErr) {
+      console.error('[saveProfile] getUser error:', authErr);
+      log('profile-log', 'Errore autenticazione: ' + (authErr.message || String(authErr)), 'err');
+      return;
     }
-    return;
+    const user = authRes?.user || null;
+    console.log('[saveProfile] user:', user?.id || '(none)');
+    if (!user) {
+      log('profile-log', 'Devi essere loggato.', 'err');
+      return;
+    }
+
+    const username   = (document.getElementById('username')?.value || '').trim() || null;
+    const avatar_url = (document.getElementById('avatar_url')?.value || '').trim() || null;
+
+    console.log('[saveProfile] rpc:update_my_profile params ->', {
+      p_username: username, p_full_name: null, p_avatar_url: avatar_url
+    });
+
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('update_my_profile', {
+      p_username:   username,
+      p_full_name:  null,
+      p_avatar_url: avatar_url
+    });
+
+    if (rpcErr) {
+      console.error('[saveProfile] rpc error:', rpcErr);
+      if (rpcErr.code === '23505') {
+        log('profile-log', 'Username già in uso.', 'err');
+      } else {
+        log('profile-log', rpcErr.message || String(rpcErr), 'err');
+      }
+      return;
+    }
+    console.log('[saveProfile] rpc ok:', rpcData);
+
+    // Read-back to confirm persistence
+    const { data: profile, error: readErr } = await supabase
+      .from('profiles')
+      .select('username, avatar_url, updated_at')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (readErr) {
+      console.warn('[saveProfile] read-back warning:', readErr);
+      log('profile-log', 'Profilo aggiornato (verifica lettura non riuscita).', 'ok');
+      return;
+    }
+
+    console.log('[saveProfile] profile after update:', profile);
+    log('profile-log', `Profilo aggiornato. (username: ${profile?.username ?? '—'})`, 'ok');
+  } catch (e) {
+    console.error('[saveProfile] fatal error:', e);
+    log('profile-log', 'Errore inatteso: ' + (e.message || String(e)), 'err');
   }
-
-  // Read-back to prove it persisted
-  const { data: profile, error: readErr } = await supabase
-    .from('profiles')
-    .select('username, avatar_url, updated_at')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (readErr) {
-    console.warn('read-back warning:', readErr);
-    log('profile-log', 'Profilo aggiornato (lettura di verifica non riuscita).', 'ok');
-    return;
-  }
-
-  console.debug('profile after update:', profile);
-  log('profile-log', `Profilo aggiornato. (username: ${profile?.username ?? '—'})`, 'ok');
 }
+
 
 
     // ===== Data =====
