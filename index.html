@@ -97,9 +97,9 @@
 
       <div class="row" style="margin-top:8px;">
         <div class="row">
-          <button id="btn-signup" class="btn-accent">Registrati</button>
-          <button id="btn-signin">Entra</button>
-          <button id="btn-signout" class="btn-danger">Esci</button>
+          <button id="btn-signup"   type="button" class="btn-accent">Registrati</button>
+          <button id="btn-signin"   type="button">Entra</button>
+          <button id="btn-signout"  type="button" class="btn-danger">Esci</button>
         </div>
       </div>
 
@@ -129,7 +129,7 @@
               <input id="avatar_url" placeholder="https://…" />
             </div>
             <div class="row">
-              <button id="btn-save-profile" class="btn-accent">Salva profilo</button>
+              <button id="btn-save-profile" type="button" class="btn-accent">Salva profilo</button>
             </div>
           </div>
           <div id="profile-log" class="muted" style="margin-top:8px;"></div>
@@ -160,7 +160,7 @@
         </div>
 
         <div style="margin-top:10px;">
-          <button id="btn-create" class="btn-accent">Crea tavolo</button>
+          <button id="btn-create" type="button" class="btn-accent">Crea tavolo</button>
         </div>
         <div id="create-log" class="muted" style="margin-top:8px;"></div>
       </section>
@@ -169,7 +169,7 @@
       <section class="card" style="margin-top:16px;">
         <div class="row" style="align-items:center;">
           <h2 style="flex:1;">Elenco tavoli</h2>
-          <button id="btn-refresh">Aggiorna</button>
+          <button id="btn-refresh" type="button">Aggiorna</button>
         </div>
         <div id="tables" class="list"></div>
         <div id="tables-log" class="muted"></div>
@@ -187,7 +187,7 @@
   </div>
 
   <!-- Public runtime config -->
-  <script src="/env.js?v=11"></script>
+  <script src="/env.js?v=12"></script>
 
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -211,15 +211,8 @@
     // Visibility toggles
     function setVisible(el, on) {
       if (!el) return;
-      if (on) {
-        el.classList.add('visible');
-        el.classList.remove('requires-auth');
-        el.setAttribute('aria-hidden', 'false');
-      } else {
-        el.classList.remove('visible');
-        el.classList.add('requires-auth');
-        el.setAttribute('aria-hidden', 'true');
-      }
+      if (on) { el.classList.add('visible'); el.classList.remove('requires-auth'); el.setAttribute('aria-hidden', 'false'); }
+      else    { el.classList.remove('visible'); el.classList.add('requires-auth'); el.setAttribute('aria-hidden', 'true'); }
     }
     function showAppForUser(isAuthed) {
       const authCard = $('auth-section');
@@ -260,7 +253,6 @@
         return log('auth-log', error.message || String(error), 'err');
       }
 
-      // Flip UI immediately using returned session (avoid races)
       if (data?.session) {
         showAppForUser(true);
         log('auth-log', 'Accesso riuscito.', 'ok');
@@ -276,7 +268,6 @@
       await supabase.auth.signOut();
       log('auth-log', 'Sei uscito.', 'muted');
       showAppForUser(false);
-      // Clear lists
       $('tables').innerHTML = '';
       $('mine').innerHTML = '';
       $('whoami').textContent = 'Utente: —';
@@ -308,7 +299,6 @@
 
     // ===== Auth state → UI & data =====
     async function afterAuthUpdate(sessionMaybe) {
-      // Prefer provided session; otherwise read local session (fast)
       let session = sessionMaybe;
       if (!session) {
         const s = await supabase.auth.getSession();
@@ -321,7 +311,6 @@
 
       $('whoami').textContent = `Utente: ${user.email || user.id}`;
 
-      // Profile fetch should not block UI visibility
       try {
         const { data: profile } = await supabase
           .from('profiles')
@@ -397,7 +386,7 @@
               <span>Creato: ${fmt(t.created_at)}</span>
             </div>
             <div class="actions">
-              <button data-act="reserve" class="btn-accent">Prenota</button>
+              <button data-act="reserve" type="button" class="btn-accent">Prenota</button>
             </div>
           `;
           div.querySelector('[data-act="reserve"]').onclick = async () => {
@@ -450,13 +439,45 @@
       }
     }
 
+    // ===== Event delegation for reliability =====
+    document.addEventListener('click', async (ev) => {
+      const t = ev.target;
+      if (!(t instanceof HTMLElement)) return;
+
+      switch (t.id) {
+        case 'btn-signup':
+          console.debug('click: signup');
+          await signUpEmailPassword();
+          break;
+        case 'btn-signin':
+          console.debug('click: signin');
+          await signInEmailPassword();
+          break;
+        case 'btn-signout':
+          console.debug('click: signout');
+          await signOut();
+          break;
+        case 'btn-save-profile':
+          console.debug('click: save profile');
+          await saveProfile();
+          break;
+        case 'btn-create':
+          console.debug('click: create tavolo');
+          await createTavolo();
+          break;
+        case 'btn-refresh':
+          console.debug('click: refresh lists');
+          await loadTavoli(); await loadMine();
+          break;
+      }
+    });
+
     // ===== Auth events & boot =====
     supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('auth event:', event, session);
       showAppForUser(!!session);
       if (session) await afterAuthUpdate(session);
       if (!session) {
-        // Signed out: clear UI quickly
         $('tables').innerHTML = '';
         $('mine').innerHTML = '';
         $('whoami').textContent = 'Utente: —';
@@ -465,18 +486,10 @@
     });
 
     (async () => {
-      const s = await supabase.auth.getSession();   // local, no network
+      const s = await supabase.auth.getSession();
       showAppForUser(!!s.data.session);
       await afterAuthUpdate(s.data.session);
     })();
-
-    // Wire events
-    $('btn-signup').onclick = signUpEmailPassword;
-    $('btn-signin').onclick = signInEmailPassword;
-    $('btn-signout').onclick = signOut;
-    $('btn-save-profile').onclick = saveProfile;
-    $('btn-create').onclick = createTavolo;
-    $('btn-refresh').onclick = async () => { await loadTavoli(); await loadMine(); };
   </script>
 </body>
 </html>
