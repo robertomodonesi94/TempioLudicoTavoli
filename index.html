@@ -77,8 +77,6 @@
           <h2>Profilo</h2>
           <label>Username</label>
           <input id="username" placeholder="handle (3–32)" />
-          <label style="margin-top:8px">Avatar URL</label>
-          <input id="avatar_url" placeholder="https://…" />
           <div class="row" style="margin-top:10px">
             <button id="btn-save-profile" type="button" class="btn-accent">Salva profilo</button>
             <button id="btn-ping" type="button">Ping REST</button>
@@ -126,24 +124,24 @@
     </div>
   </div>
 
-  <!-- your public keys (unchanged) -->
+  <!-- public keys (unchanged) -->
   <script src="/env.js"></script>
 
   <!-- app -->
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-    // -------- badges
+    // badges
     const setBadge = (id, ok) => { const el=document.getElementById(id); if (el) el.textContent = ok ? 'OK' : 'err'; };
     setBadge('env-ok', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
     setBadge('sdk-ok', true);
 
-    // -------- singleton client (avoid multiple GoTrue instances)
+    // singleton client
     const SB_OPTS = { auth: { storageKey: 'sb-tempioludico-web-v1', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
     window.__supabase ??= createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, SB_OPTS);
     window.supabase = window.__supabase;
 
-    // keep a single auth subscription
+    // single auth listener
     window.__sbAuthSub?.unsubscribe?.();
     window.__sbAuthSub = supabase.auth.onAuthStateChange((event, session) => {
       console.log('auth:', event, session?.user?.id || null);
@@ -151,7 +149,7 @@
       if (session) bootData().catch(console.error);
     }).data.subscription;
 
-    // -------- helpers
+    // helpers
     const $ = (id) => document.getElementById(id);
     const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
     const log = (id, msg, cls='muted') => { const el=$(id); if(el){ el.className=cls; el.textContent=msg; } };
@@ -168,37 +166,37 @@
       return session?.user || null;
     }
 
-    // deterministic REST ping so Network always shows traffic on actions
+    // REST ping for deterministic Network traffic
     async function pingRest(){
-      const user = await getSessionUser();
-      if (!user) return { ok:false, reason:'no-session' };
-      const tok = (await supabase.auth.getSession()).data.session.access_token;
+      const s = await supabase.auth.getSession();
+      const token = s?.data?.session?.access_token;
+      if (!token) return { ok:false, reason:'no-session' };
       const url = `${window.SUPABASE_URL}/rest/v1/profiles?select=id&limit=1`;
-      const res = await fetch(url, { headers: { apikey: window.SUPABASE_ANON_KEY, Authorization: `Bearer ${tok}` } });
+      const res = await fetch(url, { headers: { apikey: window.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` } });
       return { ok: res.ok, status: res.status };
     }
 
-    // -------- AUTH actions
+    // AUTH actions
     async function signUp(){
       log('auth-log','');
       const email=$('email').value.trim(), password=$('password').value;
-      if (!email || !password) return log('auth-log','Email and password required','muted');
+      if (!email || !password) return log('auth-log','Email and password required');
       const { error } = await supabase.auth.signUp({ email, password, options:{ emailRedirectTo: location.origin + '/' } });
-      if (error) return log('auth-log', error.message || String(error), 'muted');
-      log('auth-log','Registered. Check email to confirm.','muted');
+      if (error) return log('auth-log', error.message || String(error));
+      log('auth-log','Registered. Check email to confirm.');
     }
     async function signIn(){
       log('auth-log','');
       const email=$('email').value.trim(), password=$('password').value;
-      if (!email || !password) return log('auth-log','Email and password required','muted');
+      if (!email || !password) return log('auth-log','Email and password required');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return log('auth-log', error.message || String(error), 'muted');
+      if (error) return log('auth-log', error.message || String(error));
       $('whoami').textContent = 'Utente: ' + (data.session.user.email || data.session.user.id);
       await bootData();
     }
     async function signInAnon(){
       const { data, error } = await supabase.auth.signInAnonymously();
-      if (error) return log('auth-log', error.message || String(error), 'muted');
+      if (error) return log('auth-log', error.message || String(error));
       $('whoami').textContent = 'Utente: ' + data.user.id;
       await bootData();
     }
@@ -206,36 +204,40 @@
       await supabase.auth.signOut();
       $('whoami').textContent = 'Utente: —'; $('role').textContent = 'Ruolo: —';
       $('tables').innerHTML = ''; $('mine').innerHTML = '';
-      log('auth-log','Signed out','muted');
+      log('auth-log','Signed out');
     }
 
-    // -------- PROFILE
+    // PROFILE
     async function loadProfile(){
       const user = await getSessionUser(); if (!user) return;
-      const { data, error } = await supabase.from('profiles').select('username,avatar_url,role').eq('id', user.id).maybeSingle();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username,role')
+        .eq('id', user.id)
+        .maybeSingle();
       if (error) return;
       $('username').value = data?.username ?? '';
-      $('avatar_url').value = data?.avatar_url ?? '';
       $('role').textContent = 'Ruolo: ' + (data?.role || 'user');
       $('whoami').textContent = 'Utente: ' + (user.email || user.id);
     }
     async function saveProfile(){
       await pingRest();
-      const user = await getSessionUser(); if (!user) return log('profile-log','Login required','muted');
+      const user = await getSessionUser(); if (!user) return log('profile-log','Login required');
       const username = $('username').value.trim() || null;
-      const avatar_url = $('avatar_url').value.trim() || null;
 
-      // try RPC first, fallback to direct update
-      let { error } = await supabase.rpc('update_my_profile', { p_username: username, p_full_name: null, p_avatar_url: avatar_url });
+      // try RPC first
+      let { error } = await supabase.rpc('update_my_profile', { p_username: username, p_full_name: null, p_avatar_url: null });
       if (error){
-        const u = await supabase.from('profiles').update({ username, avatar_url, updated_at: new Date().toISOString() }).eq('id', user.id);
-        if (u.error) return log('profile-log', u.error.message || String(u.error), 'muted');
+        const u = await supabase.from('profiles')
+          .update({ username, updated_at: new Date().toISOString() })
+          .eq('id', user.id);
+        if (u.error) return log('profile-log', u.error.message || String(u.error));
       }
       await loadProfile();
-      log('profile-log','Profile saved','muted');
+      log('profile-log','Profile saved');
     }
 
-    // -------- DATA (tavoli + reservations)
+    // DATA (tavoli + reservations)
     function renderTableItem(t){
       return `
         ${t.image_url ? `<img class="thumb" src="${t.image_url}" alt="${t.title}" />` : `<div class="noimg">No image</div>`}
@@ -247,22 +249,20 @@
     async function createTavolo(){
       await pingRest();
       const title=$('title').value.trim(); const complexity=Number($('complexity').value); const image_url=$('image_url').value.trim();
-      if (!title) return log('create-log','Title required','muted');
-      if (!Number.isFinite(complexity) || complexity<1 || complexity>5) return log('create-log','Complexity 1–5','muted');
+      if (!title) return log('create-log','Title required');
+      if (!Number.isFinite(complexity) || complexity<1 || complexity>5) return log('create-log','Complexity 1–5');
       const payload = { title, complexity }; if (image_url) payload.image_url = image_url;
       const { error } = await supabase.from('tavoli').insert(payload);
-      if (error) return log('create-log', error.message || String(error), 'muted');
+      if (error) return log('create-log', error.message || String(error));
       $('title').value=''; $('image_url').value=''; $('complexity').value='3';
-      log('create-log','Table created','muted');
+      log('create-log','Table created');
       await loadTavoli(); await loadMine();
     }
     async function listTavoli(){
-      // prefer a view if present for counts
       const { data, error } = await supabase.from('tavoli_view')
         .select('id,title,complexity,image_url,created_at,reservations_count')
         .order('created_at',{ascending:false}).limit(100);
       if (!error && data) return data;
-      // fallback to base table
       const fb = await supabase.from('tavoli').select('id,title,complexity,image_url,created_at').order('created_at',{ascending:false}).limit(100);
       if (fb.error) throw fb.error;
       return fb.data || [];
@@ -284,8 +284,8 @@
           host.appendChild(el);
         }
         if (!items.length) host.innerHTML = '<div class="muted">Nessun tavolo</div>';
-        log('tables-log', `${items.length} tavoli`, 'muted');
-      }catch(e){ log('tables-log', e.message || String(e), 'muted'); }
+        log('tables-log', `${items.length} tavoli`);
+      }catch(e){ log('tables-log', e.message || String(e)); }
     }
     async function loadMine(){
       const host=$('mine'); host.innerHTML='';
@@ -309,7 +309,7 @@
       await loadMine();
     }
 
-    // -------- bind buttons (single binding)
+    // bind buttons
     function bind(){
       const map = new Map([
         ['btn-signup',        signUp],
@@ -328,13 +328,12 @@
       }
     }
 
-    // -------- initial state
+    // initial state
     (async ()=>{
       bind();
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session} } = await supabase.auth.getSession();
       renderAuth(!!session);
       if (session) await bootData();
-      // whoami badge
       if (session) $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
     })();
   </script>
