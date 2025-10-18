@@ -131,21 +131,24 @@
     setBadge('env-ok', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
     setBadge('sdk-ok', true);
 
-    // singleton
     const SB_OPTS = { auth: { storageKey: 'sb-tempioludico-web-v1', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
     window.__supabase ??= createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, SB_OPTS);
     window.supabase = window.__supabase;
 
-    // boot guard
+    // run boot once via auth listener only
     let bootRan = false;
 
-    // auth listener → single boot
     window.__sbAuthSub?.unsubscribe?.();
     window.__sbAuthSub = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('auth:', event, session?.user?.id || null);
       renderAuth(!!session);
-      if (session && !bootRan) { bootRan = true; await bootData().catch(console.error); }
-      if (!session) { bootRan = false; clearLists(); }
+      if (session) {
+        $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
+        if (!bootRan) { bootRan = true; await bootData().catch(console.error); }
+      } else {
+        bootRan = false;
+        clearLists();
+      }
     }).data.subscription;
 
     const $ = (id) => document.getElementById(id);
@@ -194,13 +197,13 @@
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return log('auth-log', error.message || String(error));
       $('whoami').textContent = 'Utente: ' + (data.session.user.email || data.session.user.id);
-      // do NOT call bootData() here; auth listener will.
+      // do not call bootData(); auth listener will handle INITIAL_SESSION/SIGNED_IN
     }
     async function signInAnon(){
       const { data, error } = await supabase.auth.signInAnonymously();
       if (error) return log('auth-log', error.message || String(error));
       $('whoami').textContent = 'Utente: ' + data.user.id;
-      // do NOT call bootData() here; auth listener will.
+      // do not call bootData(); auth listener will handle
     }
     async function signOut(){
       await supabase.auth.signOut();
@@ -231,7 +234,7 @@
       log('profile-log','Profile saved');
     }
 
-    // DATA
+    // DATA — counts computed client-side
     function renderTableItem(t){
       return `
         ${t.image_url ? `<img class="thumb" src="${t.image_url}" alt="${t.title}" />` : `<div class="noimg">No image</div>`}
@@ -240,7 +243,6 @@
         <div class="row" style="margin-top:8px"><button class="btn-accent" data-act="reserve" data-id="${t.id}" type="button">Prenota</button></div>
       `;
     }
-
     async function fetchTavoli(){
       const { data, error } = await supabase
         .from('tavoli')
@@ -257,16 +259,15 @@
       for (const r of (data || [])) m.set(r.tavolo_id, (m.get(r.tavolo_id) || 0) + 1);
       return m;
     }
-
-    // ---- render token to prevent duplicate lists from racing
-    let tavoliRenderToken = 0;
-
     async function listTavoliWithCounts(){
       const [tavoli, counts] = await Promise.all([fetchTavoli(), fetchReservationCounts()]);
       const seen = new Set();
       return tavoli.filter(t => !seen.has(t.id) && seen.add(t.id))
                    .map(t => ({ ...t, reservations_count: counts.get(t.id) || 0 }));
     }
+
+    // render token prevents overlapping renders from duplicating DOM
+    let tavoliRenderToken = 0;
 
     async function createTavolo(){
       await pingRest();
@@ -282,15 +283,21 @@
     }
 
     async function loadTavoli(){
-      const myToken = ++tavoliRenderToken;
-      // build off-DOM, then commit once
-      let html = '';
+      const my = ++tavoliRenderToken;
+      const host = $('tables');
+      host.innerHTML = '';
       try{
         const items = await listTavoliWithCounts();
-        for (const t of items){ html += `<div class="item">${renderTableItem(t)}</div>`; }
-        if (myToken !== tavoliRenderToken) return; // stale render, abort
-        const host = $('tables');
-        host.innerHTML = items.length ? html : '<div class="muted">Nessun tavolo</div>';
+        if (my !== tavoliRenderToken) return; // stale render
+        const frag = document.createDocumentFragment();
+        for (const t of items){
+          const el = document.createElement('div');
+          el.className = 'item';
+          el.innerHTML = renderTableItem(t);
+          frag.appendChild(el);
+        }
+        host.appendChild(frag);
+        if (!items.length) host.innerHTML = '<div class="muted">Nessun tavolo</div>';
         // bind buttons after commit
         host.querySelectorAll('[data-act="reserve"]').forEach(btn=>{
           btn.addEventListener('click', async (ev)=>{
@@ -302,8 +309,7 @@
         });
         log('tables-log', `${items.length} tavoli`);
       }catch(e){
-        if (myToken !== tavoliRenderToken) return;
-        $('tables').innerHTML = '';
+        if (my !== tavoliRenderToken) return;
         log('tables-log', e.message || String(e));
       }
     }
@@ -314,7 +320,7 @@
       if (error) throw error;
     }
     async function loadMine(){
-      const host=$('mine');
+      const host=$('mine'); host.innerHTML='';
       const { data, error } = await supabase
         .from('reservations')
         .select('id,tavolo_id,created_at')
@@ -325,19 +331,20 @@
       const ids=[...new Set(data.map(r=>r.tavolo_id))];
       const t = await supabase.from('tavoli').select('id,title').in('id', ids);
 
-      let html = '';
+      const frag = document.createDocumentFragment();
       for (const r of data){
         const tt = t.data?.find(x=>x.id===r.tavolo_id);
-        html += `
-          <div class="item">
-            <h3 style="margin:0 0 6px 0">${tt?tt.title:r.tavolo_id}</h3>
-            <div class="meta"><span>Prenotato: ${fmt(r.created_at)}</span></div>
-            <div class="row" style="margin-top:8px">
-              <button class="btn-danger" data-act="cancel" data-id="${r.id}" type="button">Cancella</button>
-            </div>
+        const el = document.createElement('div');
+        el.className='item';
+        el.innerHTML = `
+          <h3 style="margin:0 0 6px 0">${tt?tt.title:r.tavolo_id}</h3>
+          <div class="meta"><span>Prenotato: ${fmt(r.created_at)}</span></div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn-danger" data-act="cancel" data-id="${r.id}" type="button">Cancella</button>
           </div>`;
+        frag.appendChild(el);
       }
-      host.innerHTML = html;
+      host.appendChild(frag);
       host.querySelectorAll('[data-act="cancel"]').forEach(btn=>{
         btn.addEventListener('click', async (ev)=>{
           ev.preventDefault();
@@ -375,8 +382,8 @@
       bind();
       const { data: { session } } = await supabase.auth.getSession();
       renderAuth(!!session);
-      if (session && !bootRan) { bootRan = true; await bootData(); }
       if (session) $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
+      // do not call bootData() here; auth listener handles INITIAL_SESSION
     })();
   </script>
 </body>
