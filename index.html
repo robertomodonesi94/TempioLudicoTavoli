@@ -223,10 +223,8 @@
     async function saveProfile(){
       await pingRest();
       const user = await getSessionUser(); if (!user) return log('profile-log','Login required');
-
       const username = $('username').value.trim() || null;
 
-      // single statement, no RPC, no updated_at
       const { error } = await supabase
         .from('profiles')
         .upsert({ id: user.id, username }, { onConflict: 'id' });
@@ -286,18 +284,41 @@
         log('tables-log', `${items.length} tavoli`);
       }catch(e){ log('tables-log', e.message || String(e)); }
     }
+
+    // --- Delete own reservations ---
+    async function deleteReservation(id){
+      await pingRest();
+      const { error } = await supabase.from('reservations').delete().eq('id', id);
+      if (error) throw error;
+    }
+
     async function loadMine(){
       const host=$('mine'); host.innerHTML='';
-      const { data, error } = await supabase.from('reservations').select('tavolo_id,created_at').order('created_at',{ascending:false});
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('id,tavolo_id,created_at')
+        .order('created_at',{ascending:false});
       if (error){ host.innerHTML=''; return; }
       if (!data?.length){ host.innerHTML = '<div class="muted">Nessuna prenotazione</div>'; return; }
+
       const ids=[...new Set(data.map(r=>r.tavolo_id))];
       const t = await supabase.from('tavoli').select('id,title').in('id', ids);
+
       for (const r of data){
         const tt = t.data?.find(x=>x.id===r.tavolo_id);
         const el = document.createElement('div');
         el.className='item';
-        el.innerHTML = `<h3>${tt?tt.title:r.tavolo_id}</h3><div class="meta"><span>${fmt(r.created_at)}</span></div>`;
+        el.innerHTML = `
+          <h3 style="margin:0 0 6px 0">${tt?tt.title:r.tavolo_id}</h3>
+          <div class="meta"><span>Prenotato: ${fmt(r.created_at)}</span></div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn-danger" data-act="cancel" data-id="${r.id}" type="button">Cancella</button>
+          </div>`;
+        el.querySelector('[data-act="cancel"]').addEventListener('click', async (ev)=>{
+          ev.preventDefault();
+          try { await deleteReservation(r.id); await loadMine(); }
+          catch (err) { alert('Errore cancellazione: ' + (err?.message || err)); }
+        });
         host.appendChild(el);
       }
     }
