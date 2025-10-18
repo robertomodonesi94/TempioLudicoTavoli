@@ -44,7 +44,6 @@
       </div>
     </header>
 
-    <!-- AUTH -->
     <section id="auth" class="card">
       <h2>Accesso</h2>
       <div class="row">
@@ -70,7 +69,6 @@
       </div>
     </section>
 
-    <!-- APP -->
     <div id="app" class="hidden" aria-hidden="true">
       <div class="grid">
         <section class="card">
@@ -124,43 +122,29 @@
     </div>
   </div>
 
-  <!-- keys -->
   <script src="/env.js"></script>
 
-  <!-- app -->
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-    // Status badges
     const setBadge = (id, ok) => { const el=document.getElementById(id); if (el) el.textContent = ok ? 'OK' : 'err'; };
     setBadge('env-ok', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
     setBadge('sdk-ok', true);
 
-    // Supabase singleton
     const SB_OPTS = { auth: { storageKey: 'sb-tempioludico-web-v1', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
     window.__supabase ??= createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, SB_OPTS);
     window.supabase = window.__supabase;
 
-    // Boot only from auth listener
-    let bootOnce = false;
-
     window.__sbAuthSub?.unsubscribe?.();
-    window.__sbAuthSub = supabase.auth.onAuthStateChange(async (event, session) => {
+    window.__sbAuthSub = supabase.auth.onAuthStateChange((event, session) => {
       console.log('auth:', event, session?.user?.id || null);
       renderAuth(!!session);
-      if (session) {
-        document.getElementById('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
-        if (!bootOnce) { bootOnce = true; await bootData().catch(console.error); }
-      } else {
-        bootOnce = false;
-        clearUI();
-      }
+      if (session) bootData().catch(console.error);
     }).data.subscription;
 
-    // DOM utils
     const $ = (id) => document.getElementById(id);
     const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
-    const log = (id, msg) => { const el=$(id); if(el){ el.textContent=msg; } };
+    const log = (id, msg, cls='muted') => { const el=$(id); if(el){ el.className=cls; el.textContent=msg; } };
 
     function renderAuth(isAuthed){
       $('auth').classList.toggle('hidden', isAuthed);
@@ -168,57 +152,58 @@
       $('app').setAttribute('aria-hidden', String(!isAuthed));
       setBadge('auth-ok', isAuthed);
     }
-    function clearUI(){
-      $('tables').innerHTML=''; $('mine').innerHTML='';
-      $('whoami').textContent='Utente: —'; $('role').textContent='Ruolo: —';
-    }
-
-    // Always produce one network call when buttons fire
-    async function pingRest(){
+    async function getSessionUser(){
       const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) return { ok:false, status:0 };
-      const res = await fetch(`${window.SUPABASE_URL}/rest/v1/profiles?select=id&limit=1`, {
-        headers: { apikey: window.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` }
-      });
-      console.debug('ping status', res.status);
+      return session?.user || null;
+    }
+    async function pingRest(){
+      const s = await supabase.auth.getSession();
+      const token = s?.data?.session?.access_token;
+      if (!token) return { ok:false, reason:'no-session' };
+      const url = `${window.SUPABASE_URL}/rest/v1/profiles?select=id&limit=1`;
+      const res = await fetch(url, { headers: { apikey: window.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` } });
       return { ok: res.ok, status: res.status };
     }
 
-    // Auth actions
+    // AUTH
     async function signUp(){
       log('auth-log','');
       const email=$('email').value.trim(), password=$('password').value;
       if (!email || !password) return log('auth-log','Email and password required');
       const { error } = await supabase.auth.signUp({ email, password, options:{ emailRedirectTo: location.origin + '/' } });
-      log('auth-log', error ? error.message : 'Registered. Confirm email.');
+      if (error) return log('auth-log', error.message || String(error));
+      log('auth-log','Registered. Check email to confirm.');
     }
     async function signIn(){
       log('auth-log','');
       const email=$('email').value.trim(), password=$('password').value;
       if (!email || !password) return log('auth-log','Email and password required');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      log('auth-log', error ? error.message : 'Signed in');
-      if (!error) $('whoami').textContent = 'Utente: ' + (data.session.user.email || data.session.user.id);
-      // do not call bootData(); auth listener will
+      if (error) return log('auth-log', error.message || String(error));
+      $('whoami').textContent = 'Utente: ' + (data.session.user.email || data.session.user.id);
+      await bootData();
     }
     async function signInAnon(){
       const { data, error } = await supabase.auth.signInAnonymously();
-      log('auth-log', error ? error.message : 'Anon ok');
-      if (!error) $('whoami').textContent = 'Utente: ' + data.user.id;
-      // do not call bootData(); auth listener will
+      if (error) return log('auth-log', error.message || String(error));
+      $('whoami').textContent = 'Utente: ' + data.user.id;
+      await bootData();
     }
     async function signOut(){
       await supabase.auth.signOut();
-      clearUI();
+      $('whoami').textContent = 'Utente: —'; $('role').textContent = 'Ruolo: —';
+      $('tables').innerHTML = ''; $('mine').innerHTML = '';
       log('auth-log','Signed out');
     }
 
-    // Profile
+    // PROFILE
     async function loadProfile(){
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data, error } = await supabase.from('profiles').select('username,role').eq('id', user.id).maybeSingle();
+      const user = await getSessionUser(); if (!user) return;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username,role')
+        .eq('id', user.id)
+        .maybeSingle();
       if (error) return;
       $('username').value = data?.username ?? '';
       $('role').textContent = 'Ruolo: ' + (data?.role || 'user');
@@ -226,27 +211,22 @@
     }
     async function saveProfile(){
       await pingRest();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return log('profile-log','Login required');
+      const user = await getSessionUser(); if (!user) return log('profile-log','Login required');
       const username = $('username').value.trim() || null;
       const { error } = await supabase.from('profiles').upsert({ id: user.id, username }, { onConflict: 'id' });
-      log('profile-log', error ? error.message : 'Profile saved');
-      if (!error) await loadProfile();
+      if (error) return log('profile-log', error.message || String(error));
+      await loadProfile();
+      log('profile-log','Profile saved');
     }
 
-    // Data
+    // DATA — no view, no duplicates
     function renderTableItem(t){
       return `
         ${t.image_url ? `<img class="thumb" src="${t.image_url}" alt="${t.title}" />` : `<div class="noimg">No image</div>`}
         <h3 style="margin:8px 0 6px 0">${t.title}</h3>
-        <div class="meta">
-          <span>Complexity: ${t.complexity}</span>
-          <span>Created: ${fmt(t.created_at)}</span>
-          <span>Bookings: ${t.reservations_count}</span>
-        </div>
-        <div class="row" style="margin-top:8px">
-          <button class="btn-accent" data-act="reserve" data-id="${t.id}" type="button">Prenota</button>
-        </div>`;
+        <div class="meta"><span>Complexity: ${t.complexity}</span><span>Created: ${fmt(t.created_at)}</span><span>Bookings: ${t.reservations_count}</span></div>
+        <div class="row" style="margin-top:8px"><button class="btn-accent" data-act="reserve" data-id="${t.id}" type="button">Prenota</button></div>
+      `;
     }
 
     async function fetchTavoli(){
@@ -259,7 +239,10 @@
       return data || [];
     }
     async function fetchReservationCounts(){
-      const { data, error } = await supabase.from('reservations').select('tavolo_id');
+      // pull only ids and count client-side to avoid duplication
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('tavolo_id'); // RLS should already scope to user if needed, else returns all
       if (error) throw error;
       const m = new Map();
       for (const r of (data || [])) m.set(r.tavolo_id, (m.get(r.tavolo_id) || 0) + 1);
@@ -267,10 +250,10 @@
     }
     async function listTavoliWithCounts(){
       const [tavoli, counts] = await Promise.all([fetchTavoli(), fetchReservationCounts()]);
-      const seen = new Set(); // ensure unique tables
-      return tavoli
-        .filter(t => !seen.has(t.id) && seen.add(t.id))
-        .map(t => ({ ...t, reservations_count: counts.get(t.id) || 0 }));
+      // ensure uniqueness by id
+      const seen = new Set();
+      return tavoli.filter(t => !seen.has(t.id) && seen.add(t.id))
+                   .map(t => ({ ...t, reservations_count: counts.get(t.id) || 0 }));
     }
 
     async function createTavolo(){
@@ -280,39 +263,31 @@
       if (!Number.isFinite(complexity) || complexity<1 || complexity>5) return log('create-log','Complexity 1–5');
       const payload = { title, complexity }; if (image_url) payload.image_url = image_url;
       const { error } = await supabase.from('tavoli').insert(payload);
-      log('create-log', error ? error.message : 'Table created');
-      if (!error){ $('title').value=''; $('image_url').value=''; $('complexity').value='3'; await loadTavoli(); await loadMine(); }
+      if (error) return log('create-log', error.message || String(error));
+      $('title').value=''; $('image_url').value=''; $('complexity').value='3';
+      log('create-log','Table created');
+      await loadTavoli(); await loadMine();
     }
 
     async function loadTavoli(){
-      const host = $('tables');
-      host.innerHTML = ''; // clear to avoid duplicates
+      const host = $('tables'); host.innerHTML='';
       try{
         const items = await listTavoliWithCounts();
         for (const t of items){
           const el = document.createElement('div');
           el.className = 'item';
           el.innerHTML = renderTableItem(t);
-
-          // bind before append so events survive innerHTML changes elsewhere
-          const btn = el.querySelector('[data-act="reserve"]');
-          btn.addEventListener('click', async (ev)=>{
+          el.querySelector('[data-act="reserve"]').addEventListener('click', async (ev)=>{
             ev.preventDefault();
-            await pingRest(); // guarantees a visible network request
-            try{
-              const { error } = await supabase.from('reservations').insert({ tavolo_id: t.id });
-              if (error) alert('Errore: ' + error.message);
-              await loadTavoli(); await loadMine();
-            }catch(err){ alert('Errore: ' + (err?.message || err)); }
+            await pingRest();
+            try{ await supabase.from('reservations').insert({ tavolo_id: t.id }); await loadTavoli(); await loadMine(); }
+            catch(err){ alert('Errore: ' + (err?.message || err)); }
           });
-
           host.appendChild(el);
         }
         if (!items.length) host.innerHTML = '<div class="muted">Nessun tavolo</div>';
-        document.getElementById('tables-log').textContent = `${items.length} tavoli`;
-      }catch(e){
-        document.getElementById('tables-log').textContent = e.message || String(e);
-      }
+        log('tables-log', `${items.length} tavoli`);
+      }catch(e){ log('tables-log', e.message || String(e)); }
     }
 
     async function deleteReservation(id){
@@ -342,13 +317,11 @@
           <div class="row" style="margin-top:8px">
             <button class="btn-danger" data-act="cancel" data-id="${r.id}" type="button">Cancella</button>
           </div>`;
-
         el.querySelector('[data-act="cancel"]').addEventListener('click', async (ev)=>{
           ev.preventDefault();
           try { await deleteReservation(r.id); await loadMine(); }
           catch (err) { alert('Errore cancellazione: ' + (err?.message || err)); }
         });
-
         host.appendChild(el);
       }
     }
@@ -379,10 +352,10 @@
 
     (async ()=>{
       bind();
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session} } = await supabase.auth.getSession();
       renderAuth(!!session);
-      if (session) document.getElementById('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
-      // no boot here; auth listener handles INITIAL_SESSION
+      if (session) await bootData();
+      if (session) $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
     })();
   </script>
 </body>
