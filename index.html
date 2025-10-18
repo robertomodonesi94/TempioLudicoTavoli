@@ -1,472 +1,342 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tempio Ludico — Tavoli & Prenotazioni</title>
-  <meta name="description" content="Crea tavoli da gioco e prenota un posto." />
-  <meta name="theme-color" content="#ed445b">
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tempio Ludico — Tavoli</title>
+  <meta name="theme-color" content="#ed445b" />
   <style>
-    :root {
-      --bg:#ed445b; --card:#ffffff; --ink:#0b0f14; --text:#ffffff; --accent:#ed445b;
-      --muted:#5b6c85; --danger:#ef4444; --ok:#16a34a;
-      --border:#e5e7eb; --border-strong:#d1d5db; --shadow:0 6px 18px rgba(0,0,0,.12);
-    }
+    :root{--bg:#ed445b;--ink:#0b0f14;--card:#fff;--muted:#5b6c85;--b:#e5e7eb;--b2:#d1d5db}
     *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Apple Color Emoji","Segoe UI Emoji";background:var(--bg);color:var(--text)}
-    .container{max-width:1100px;margin:0 auto;padding:24px}
-    header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;color:var(--text)}
-    h1{font-size:22px;margin:0}
-    .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;background:rgba(255,255,255,.15);color:var(--text);border:1px solid rgba(255,255,255,.35)}
-    a{color:var(--text);text-decoration:none}
-    .grid{display:grid;grid-template-columns:1fr;gap:16px}
-    @media(min-width:900px){.grid{grid-template-columns:1fr 1fr}}
-    .card{background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
-    .card h2{margin-top:0;font-size:16px;color:var(--ink)}
-    label{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px}
-    input,select,textarea{width:100%;background:#fff;color:var(--ink);border:1px solid var(--border-strong);border-radius:8px;padding:10px 12px;font-size:14px}
-    input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);border-color:var(--accent);box-shadow:0 0 0 3px rgba(237,68,91,.22)}
-    .row{display:flex;gap:10px;flex-wrap:wrap}
+    body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto}
+    .wrap{max-width:1100px;margin:0 auto;padding:20px}
+    header{display:flex;justify-content:space-between;align-items:center;color:#fff}
+    h1{font-size:20px;margin:0}
+    .badge{font-size:12px;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:2px 8px}
+    .grid{display:grid;gap:14px}
+    @media (min-width:900px){.grid{grid-template-columns:1fr 1fr}}
+    .card{background:var(--card);border:1px solid var(--b);border-radius:12px;padding:14px}
+    .card h2{margin:0 0 8px 0;font-size:16px;color:var(--ink)}
+    label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+    input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--b2);border-radius:8px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
     .row>*{flex:1}
-    .row .shrink{flex:0 0 auto}
-    button{background:#f3f4f6;color:var(--ink);border:1px solid var(--border-strong);border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:600}
-    button:hover{filter:brightness(.98)}
-    .btn-accent{background:var(--accent);border-color:#d73c52;color:#fff}
-    .btn-accent:hover{filter:brightness(.96)}
+    button{border:1px solid var(--b2);border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer;background:#f3f4f6}
+    .btn-accent{background:#ed445b;color:#fff;border-color:#d73c52}
     .btn-danger{background:#fee2e2;color:#7f1d1d;border-color:#fecaca}
-    .btn-danger:hover{filter:brightness(.98)}
-    .muted{color:var(--muted)} .ok{color:var(--ok)} .err{color:var(--danger)}
-    .list{display:flex;flex-direction:column;gap:10px;margin-top:10px}
-    .item{border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff;color:var(--ink)}
-    .item h3{margin:0 0 8px 0;font-size:15px;color:var(--ink)}
-    .item .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
-    .item .actions{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
-    code.inline{background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:var(--ink)}
-    footer{margin-top:28px;font-size:12px;color:rgba(255,255,255,.9)}
-    img.thumb{width:100%;height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}
-    .noimg{height:160px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border-strong);border-radius:8px;color:var(--muted);background:#fafafa}
-    .requires-auth{display:none} .visible{display:block!important}
+    .muted{color:var(--muted)}
+    .list{display:flex;flex-direction:column;gap:10px}
+    .item{border:1px solid var(--b);border-radius:10px;padding:12px;background:#fff}
+    .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+    .thumb{width:100%;height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--b)}
+    .noimg{height:160px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--b2);border-radius:8px;color:var(--muted);background:#fafafa}
+    .hidden{display:none}
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="wrap">
     <header>
-      <h1>Tempio Ludico Tavoli</h1>
-      <div>
-        <span class="badge">env.js: <span id="env-status">…</span></span>
-        <span class="badge">supabase-js: <span id="sdk-status">…</span></span>
-        <span class="badge">auth: <span id="auth-status">…</span></span>
+      <h1>Tempio Ludico — Tavoli</h1>
+      <div class="row" style="gap:6px;color:#fff">
+        <span class="badge">env:<span id="env-ok">…</span></span>
+        <span class="badge">sdk:<span id="sdk-ok">…</span></span>
+        <span class="badge">auth:<span id="auth-ok">…</span></span>
       </div>
     </header>
 
-    <!-- LOGIN -->
-    <section id="auth-section" class="card">
+    <!-- AUTH -->
+    <section id="auth" class="card">
       <h2>Accesso</h2>
       <div class="row">
         <div>
-          <label for="email">Email</label>
-          <input id="email" type="email" placeholder="nome@esempio.it" autocomplete="email" />
+          <label>Email</label>
+          <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
         </div>
         <div>
-          <label for="password">Password</label>
+          <label>Password</label>
           <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
         </div>
       </div>
-      <div class="row" style="margin-top:8px;">
-        <div class="row">
-          <button id="btn-signup"  type="button" class="btn-accent">Registrati</button>
-          <button id="btn-signin"  type="button">Entra</button>
-          <button id="btn-signout" type="button" class="btn-danger">Esci</button>
-        </div>
+      <div class="row" style="margin-top:8px">
+        <button id="btn-signup"  type="button" class="btn-accent">Registrati</button>
+        <button id="btn-signin"  type="button">Entra</button>
+        <button id="btn-signout" type="button" class="btn-danger">Esci</button>
+        <button id="btn-anon"    type="button">Anon</button>
       </div>
-      <div id="auth-log" class="muted" style="margin-top:8px;"></div>
-      <div class="row" style="margin-top:10px;">
+      <div id="auth-log" class="muted" style="margin-top:8px"></div>
+      <div class="row" style="margin-top:6px">
         <div class="muted" id="whoami">Utente: —</div>
         <div class="muted" id="role">Ruolo: —</div>
       </div>
     </section>
 
-    <!-- APP (hidden until auth) -->
-    <div id="app-sections" class="requires-auth" aria-hidden="true">
+    <!-- APP -->
+    <div id="app" class="hidden" aria-hidden="true">
       <div class="grid">
         <section class="card">
           <h2>Profilo</h2>
+          <label>Username</label>
+          <input id="username" placeholder="handle (3–32)" />
+          <label style="margin-top:8px">Avatar URL</label>
+          <input id="avatar_url" placeholder="https://…" />
+          <div class="row" style="margin-top:10px">
+            <button id="btn-save-profile" type="button" class="btn-accent">Salva profilo</button>
+            <button id="btn-ping" type="button">Ping REST</button>
+          </div>
+          <div id="profile-log" class="muted" style="margin-top:8px"></div>
+        </section>
+
+        <section class="card">
+          <h2>Crea tavolo</h2>
+          <label>Titolo</label>
+          <input id="title" placeholder="Nome sessione" />
           <div class="row">
             <div>
-              <label for="username">Username</label>
-              <input id="username" placeholder="handle univoco (3–32)" />
+              <label>Complessità</label>
+              <select id="complexity">
+                <option value="1">1</option><option value="2">2</option>
+                <option value="3" selected>3</option><option value="4">4</option><option value="5">5</option>
+              </select>
             </div>
-          </div>
-          <div class="row" style="margin-top:8px;">
             <div>
-              <label for="avatar_url">Avatar URL (facoltativo)</label>
-              <input id="avatar_url" placeholder="https://…" />
-            </div>
-            <div class="row">
-              <button id="btn-save-profile" type="button" class="btn-accent">Salva profilo</button>
-              <button id="btn-ping" type="button">Ping API (debug)</button>
+              <label>Immagine (opz.)</label>
+              <input id="image_url" placeholder="https://…" />
             </div>
           </div>
-          <div id="profile-log" class="muted" style="margin-top:8px;"></div>
+          <div style="margin-top:10px">
+            <button id="btn-create" type="button" class="btn-accent">Crea</button>
+          </div>
+          <div id="create-log" class="muted" style="margin-top:8px"></div>
         </section>
       </div>
 
-      <section class="card" style="margin-top:16px;">
-        <h2>Crea un tavolo</h2>
-        <label for="title">Titolo</label>
-        <input id="title" placeholder="Nome del gioco / sessione" />
-        <div class="row">
-          <div>
-            <label for="complexity">Complessità</label>
-            <select id="complexity">
-              <option value="1">1 (molto semplice)</option>
-              <option value="2">2 (semplice)</option>
-              <option value="3" selected>3 (medio)</option>
-              <option value="4">4 (complesso)</option>
-              <option value="5">5 (molto complesso)</option>
-            </select>
-          </div>
-          <div>
-            <label for="image_url">URL immagine (opzionale)</label>
-            <input id="image_url" placeholder="URL pubblico (es. da bucket 'tavoli')" />
-          </div>
-        </div>
-        <div style="margin-top:10px;">
-          <button id="btn-create" type="button" class="btn-accent">Crea tavolo</button>
-        </div>
-        <div id="create-log" class="muted" style="margin-top:8px;"></div>
-      </section>
-
-      <section class="card" style="margin-top:16px;">
-        <div class="row" style="align-items:center;">
-          <h2 style="flex:1;">Elenco tavoli</h2>
+      <section class="card" style="margin-top:14px">
+        <div class="row" style="align-items:center">
+          <h2 style="flex:1">Elenco tavoli</h2>
           <button id="btn-refresh" type="button">Aggiorna</button>
         </div>
         <div id="tables" class="list"></div>
         <div id="tables-log" class="muted"></div>
       </section>
 
-      <section class="card" style="margin-top:16px;">
+      <section class="card" style="margin-top:14px">
         <h2>Le mie prenotazioni</h2>
         <div id="mine" class="list"></div>
       </section>
     </div>
-
-    <footer>
-      <p>Debug rapido: <code class="inline">await window.supabase.auth.getSession()</code>.</p>
-    </footer>
   </div>
 
-  <!-- Public runtime config -->
-  <script src="/env.js?v=14"></script>
+  <!-- your public keys (unchanged) -->
+  <script src="/env.js"></script>
 
+  <!-- app -->
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-    // Global error log
-    window.addEventListener('error', (e) => console.error('window error:', e.error || e.message));
-    window.addEventListener('unhandledrejection', (e) => console.error('unhandled rejection:', e.reason));
+    // -------- badges
+    const setBadge = (id, ok) => { const el=document.getElementById(id); if (el) el.textContent = ok ? 'OK' : 'err'; };
+    setBadge('env-ok', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
+    setBadge('sdk-ok', true);
 
-    // Instrument fetch so Network must show requests
-    const __origFetch = window.fetch.bind(window);
-    window.fetch = async (...args) => {
-      const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '(Request)');
-      console.log('[fetch →]', url, args[1] || {});
-      try {
-        const res = await __origFetch(...args);
-        console.log('[fetch ✓]', url, res.status, res.type);
-        return res;
-      } catch (e) {
-        console.error('[fetch ✗]', url, e);
-        throw e;
-      }
-    };
+    // -------- singleton client (avoid multiple GoTrue instances)
+    const SB_OPTS = { auth: { storageKey: 'sb-tempioludico-web-v1', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
+    window.__supabase ??= createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, SB_OPTS);
+    window.supabase = window.__supabase;
 
-    // Badges
-    const setBadge = (id, ok) => { const el=document.querySelector('#'+id); if (el) el.textContent = ok ? 'OK' : 'errore'; };
-    setBadge('env-status', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
-    setBadge('sdk-status', true);
+    // keep a single auth subscription
+    window.__sbAuthSub?.unsubscribe?.();
+    window.__sbAuthSub = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('auth:', event, session?.user?.id || null);
+      renderAuth(!!session);
+      if (session) bootData().catch(console.error);
+    }).data.subscription;
 
-    // Supabase client
-    const supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
-      auth: { storageKey: 'sb-tempioludico', autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
-    });
-    window.supabase = supabase;
-
-    // DOM helpers
+    // -------- helpers
     const $ = (id) => document.getElementById(id);
     const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
     const log = (id, msg, cls='muted') => { const el=$(id); if(el){ el.className=cls; el.textContent=msg; } };
 
-    // Force a simple REST GET using the current access token
-    async function pingRest() {
-      const s = await supabase.auth.getSession();
-      const token = s?.data?.session?.access_token;
-      if (!token) return { ok:false, reason:'no-token' };
+    function renderAuth(isAuthed){
+      $('auth').classList.toggle('hidden', isAuthed);
+      $('app').classList.toggle('hidden', !isAuthed);
+      $('app').setAttribute('aria-hidden', String(!isAuthed));
+      setBadge('auth-ok', isAuthed);
+    }
+
+    async function getSessionUser(){
+      const { data: { session } } = await supabase.auth.getSession();
+      return session?.user || null;
+    }
+
+    // deterministic REST ping so Network always shows traffic on actions
+    async function pingRest(){
+      const user = await getSessionUser();
+      if (!user) return { ok:false, reason:'no-session' };
+      const tok = (await supabase.auth.getSession()).data.session.access_token;
       const url = `${window.SUPABASE_URL}/rest/v1/profiles?select=id&limit=1`;
-      const headers = { apikey: window.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` };
-      return fetch(url, { headers }).then(async r => ({ ok:r.ok, status:r.status, body: await r.text() }));
+      const res = await fetch(url, { headers: { apikey: window.SUPABASE_ANON_KEY, Authorization: `Bearer ${tok}` } });
+      return { ok: res.ok, status: res.status };
     }
 
-    // Visibility
-    function setVisible(el, on) {
-      if (!el) return;
-      if (on) { el.classList.add('visible'); el.classList.remove('requires-auth'); el.setAttribute('aria-hidden', 'false'); }
-      else    { el.classList.remove('visible'); el.classList.add('requires-auth'); el.setAttribute('aria-hidden', 'true'); }
+    // -------- AUTH actions
+    async function signUp(){
+      log('auth-log','');
+      const email=$('email').value.trim(), password=$('password').value;
+      if (!email || !password) return log('auth-log','Email and password required','muted');
+      const { error } = await supabase.auth.signUp({ email, password, options:{ emailRedirectTo: location.origin + '/' } });
+      if (error) return log('auth-log', error.message || String(error), 'muted');
+      log('auth-log','Registered. Check email to confirm.','muted');
     }
-    function showAppForUser(isAuthed) {
-      const authCard = $('auth-section'); const app = $('app-sections');
-      if (authCard) authCard.style.display = isAuthed ? 'none' : 'block';
-      setVisible(app, !!isAuthed);
-      const badge = document.querySelector('#auth-status'); if (badge) badge.textContent = isAuthed ? 'OK' : 'errore';
-      if (isAuthed) bindDirectHandlers();
-    }
-
-    // ===== AUTH =====
-    async function signUpEmailPassword() {
-      log('auth-log', '');
-      const email = $('email').value.trim(); const password = $('password').value;
-      if (!email || !password) return log('auth-log','Email e password sono obbligatorie.','err');
-      const { error } = await supabase.auth.signUp({ email, password, options:{ emailRedirectTo: window.location.origin + '/' } });
-      if (error) return log('auth-log', error.message || String(error), 'err');
-      log('auth-log','Registrazione effettuata. Conferma via email richiesta.','ok');
-    }
-
-    async function signInEmailPassword() {
-      log('auth-log', '');
-      const email = $('email').value.trim(); const password = $('password').value;
-      if (!email || !password) return log('auth-log','Email e password sono obbligatorie.','err');
+    async function signIn(){
+      log('auth-log','');
+      const email=$('email').value.trim(), password=$('password').value;
+      if (!email || !password) return log('auth-log','Email and password required','muted');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        if ((error.message || '').toLowerCase().includes('confirm') || error.status === 400)
-          return log('auth-log','Email non confermata. Verifica la casella di posta.','err');
-        return log('auth-log', error.message || String(error), 'err');
-      }
-      showAppForUser(!!data?.session);
-      await afterAuthUpdate(data?.session || null);
-      log('auth-log','Accesso riuscito.','ok');
+      if (error) return log('auth-log', error.message || String(error), 'muted');
+      $('whoami').textContent = 'Utente: ' + (data.session.user.email || data.session.user.id);
+      await bootData();
     }
-
-    async function signOut() {
+    async function signInAnon(){
+      const { data, error } = await supabase.auth.signInAnonymously();
+      if (error) return log('auth-log', error.message || String(error), 'muted');
+      $('whoami').textContent = 'Utente: ' + data.user.id;
+      await bootData();
+    }
+    async function signOut(){
       await supabase.auth.signOut();
-      log('auth-log','Sei uscito.','muted');
-      showAppForUser(false);
-      $('tables').innerHTML=''; $('mine').innerHTML='';
-      $('whoami').textContent='Utente: —'; $('role').textContent='Ruolo: —';
+      $('whoami').textContent = 'Utente: —'; $('role').textContent = 'Ruolo: —';
+      $('tables').innerHTML = ''; $('mine').innerHTML = '';
+      log('auth-log','Signed out','muted');
     }
 
-    // ===== PROFILE (RPC + fallback + read-back) =====
-    async function saveProfile() {
-      // 1) Guaranteed network call for visibility
+    // -------- PROFILE
+    async function loadProfile(){
+      const user = await getSessionUser(); if (!user) return;
+      const { data, error } = await supabase.from('profiles').select('username,avatar_url,role').eq('id', user.id).maybeSingle();
+      if (error) return;
+      $('username').value = data?.username ?? '';
+      $('avatar_url').value = data?.avatar_url ?? '';
+      $('role').textContent = 'Ruolo: ' + (data?.role || 'user');
+      $('whoami').textContent = 'Utente: ' + (user.email || user.id);
+    }
+    async function saveProfile(){
       await pingRest();
+      const user = await getSessionUser(); if (!user) return log('profile-log','Login required','muted');
+      const username = $('username').value.trim() || null;
+      const avatar_url = $('avatar_url').value.trim() || null;
 
-      const s = await supabase.auth.getSession();
-      const user = s?.data?.session?.user || null;
-      if (!user) return log('profile-log', 'Devi essere loggato.', 'err');
-
-      const username   = ($('username')?.value || '').trim() || null;
-      const avatar_url = ($('avatar_url')?.value || '').trim() || null;
-
-      let { error: rpcErr } = await supabase.rpc('update_my_profile', {
-        p_username:   username,
-        p_full_name:  null,
-        p_avatar_url: avatar_url
-      });
-
-      if (rpcErr) {
-        const upd = await supabase
-          .from('profiles')
-          .update({ username, avatar_url, updated_at: new Date().toISOString() })
-          .eq('id', user.id);
-        if (upd.error) return log('profile-log', upd.error.message || String(upd.error), 'err');
+      // try RPC first, fallback to direct update
+      let { error } = await supabase.rpc('update_my_profile', { p_username: username, p_full_name: null, p_avatar_url: avatar_url });
+      if (error){
+        const u = await supabase.from('profiles').update({ username, avatar_url, updated_at: new Date().toISOString() }).eq('id', user.id);
+        if (u.error) return log('profile-log', u.error.message || String(u.error), 'muted');
       }
-
-      const { data: profile, error: readErr } = await supabase
-        .from('profiles')
-        .select('username, avatar_url, updated_at')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (readErr) return log('profile-log', 'Profilo aggiornato. Verifica lettura non riuscita.', 'ok');
-      log('profile-log', `Profilo aggiornato. (username: ${profile?.username ?? '—'})`, 'ok');
+      await loadProfile();
+      log('profile-log','Profile saved','muted');
     }
 
-    // ===== Data =====
-    async function createTavolo() {
-      // 1) Guaranteed network call
+    // -------- DATA (tavoli + reservations)
+    function renderTableItem(t){
+      return `
+        ${t.image_url ? `<img class="thumb" src="${t.image_url}" alt="${t.title}" />` : `<div class="noimg">No image</div>`}
+        <h3 style="margin:8px 0 6px 0">${t.title}</h3>
+        <div class="meta"><span>Complexity: ${t.complexity}</span><span>Created: ${fmt(t.created_at)}</span><span>Bookings: ${t.reservations_count ?? 0}</span></div>
+        <div class="row" style="margin-top:8px"><button class="btn-accent" data-act="reserve" data-id="${t.id}" type="button">Prenota</button></div>
+      `;
+    }
+    async function createTavolo(){
       await pingRest();
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return log('create-log','Devi essere loggato.','err');
-
-      const title = $('title').value.trim();
-      const complexity = Number($('complexity').value);
-      const image_url = $('image_url').value.trim();
-
-      if (!title) return log('create-log','Titolo obbligatorio.','err');
-      if (Number.isNaN(complexity) || complexity<1 || complexity>5) return log('create-log','Complessità 1–5.','err');
-
+      const title=$('title').value.trim(); const complexity=Number($('complexity').value); const image_url=$('image_url').value.trim();
+      if (!title) return log('create-log','Title required','muted');
+      if (!Number.isFinite(complexity) || complexity<1 || complexity>5) return log('create-log','Complexity 1–5','muted');
       const payload = { title, complexity }; if (image_url) payload.image_url = image_url;
       const { error } = await supabase.from('tavoli').insert(payload);
-      if (error) return log('create-log', error.message || String(error), 'err');
-
-      log('create-log','Tavolo creato.','ok');
+      if (error) return log('create-log', error.message || String(error), 'muted');
       $('title').value=''; $('image_url').value=''; $('complexity').value='3';
+      log('create-log','Table created','muted');
       await loadTavoli(); await loadMine();
     }
-
-    async function listTavoli() {
-      const { data, error } = await supabase
-        .from('tavoli_view')
+    async function listTavoli(){
+      // prefer a view if present for counts
+      const { data, error } = await supabase.from('tavoli_view')
         .select('id,title,complexity,image_url,created_at,reservations_count')
-        .order('created_at',{ascending:false})
-        .limit(100);
-      if (error) throw error;
-      return data || [];
+        .order('created_at',{ascending:false}).limit(100);
+      if (!error && data) return data;
+      // fallback to base table
+      const fb = await supabase.from('tavoli').select('id,title,complexity,image_url,created_at').order('created_at',{ascending:false}).limit(100);
+      if (fb.error) throw fb.error;
+      return fb.data || [];
     }
-
-    async function reserve(tavoloId) {
-      // 1) Guaranteed network call
-      await pingRest();
-      const { error } = await supabase.from('reservations').insert({ tavolo_id: tavoloId });
-      if (error) throw error;
-    }
-
-    async function loadTavoli() {
-      const host = $('tables'); host.innerHTML = '';
-      try {
+    async function loadTavoli(){
+      const host = $('tables'); host.innerHTML='';
+      try{
         const items = await listTavoli();
-        for (const t of items) {
-          const div = document.createElement('div');
-          div.className='item';
-          div.innerHTML = `
-            ${t.image_url ? `<img class="thumb" src="${t.image_url}" alt="${t.title}">` : `<div class="noimg">Nessuna immagine</div>`}
-            <h3 style="margin-top:8px;">${t.title}</h3>
-            <div class="meta">
-              <span>Complessità: ${t.complexity}</span>
-              <span>Prenotazioni: ${t.reservations_count ?? 0}</span>
-              <span>Creato: ${fmt(t.created_at)}</span>
-            </div>
-            <div class="actions">
-              <button data-act="reserve" type="button" class="btn-accent">Prenota</button>
-            </div>
-          `;
-          div.querySelector('[data-act="reserve"]').addEventListener('click', async (e) => {
-            e.preventDefault();
-            try { await reserve(t.id); await loadTavoli(); await loadMine(); }
-            catch (err) { alert('Errore prenotazione: ' + (err?.message || err)); }
+        for (const t of items){
+          const el = document.createElement('div');
+          el.className = 'item';
+          el.innerHTML = renderTableItem(t);
+          el.querySelector('[data-act="reserve"]').addEventListener('click', async (ev)=>{
+            ev.preventDefault();
+            await pingRest();
+            try{ await supabase.from('reservations').insert({ tavolo_id: t.id }); await loadTavoli(); await loadMine(); }
+            catch(err){ alert('Errore: ' + (err?.message || err)); }
           });
-          host.appendChild(div);
+          host.appendChild(el);
         }
-        if (!items.length) host.innerHTML = '<div class="muted">Nessun tavolo creato.</div>';
-        log('tables-log', `${items.length} tavoli.`, 'muted');
-      } catch (e) {
-        console.error(e);
-        log('tables-log', e.message || String(e), 'err');
+        if (!items.length) host.innerHTML = '<div class="muted">Nessun tavolo</div>';
+        log('tables-log', `${items.length} tavoli`, 'muted');
+      }catch(e){ log('tables-log', e.message || String(e), 'muted'); }
+    }
+    async function loadMine(){
+      const host=$('mine'); host.innerHTML='';
+      const { data, error } = await supabase.from('reservations').select('tavolo_id,created_at').order('created_at',{ascending:false});
+      if (error){ host.innerHTML=''; return; }
+      if (!data?.length){ host.innerHTML = '<div class="muted">Nessuna prenotazione</div>'; return; }
+      const ids=[...new Set(data.map(r=>r.tavolo_id))];
+      const t = await supabase.from('tavoli').select('id,title').in('id', ids);
+      for (const r of data){
+        const tt = t.data?.find(x=>x.id===r.tavolo_id);
+        const el = document.createElement('div');
+        el.className='item';
+        el.innerHTML = `<h3>${tt?tt.title:r.tavolo_id}</h3><div class="meta"><span>${fmt(r.created_at)}</span></div>`;
+        host.appendChild(el);
       }
     }
 
-    async function loadMine() {
-      const host = $('mine'); host.innerHTML = '';
-      const { data: { user } } = await supabase.auth.getUser(); if (!user) return;
-
-      const { data: myRes, error } = await supabase
-        .from('reservations')
-        .select('tavolo_id, created_at')
-        .order('created_at',{ascending:false});
-      if (error) return;
-
-      if (!myRes?.length) { host.innerHTML = '<div class="muted">Nessuna prenotazione.</div>'; return; }
-
-      const ids = [...new Set(myRes.map(r => r.tavolo_id))];
-      const { data: tavoli } = await supabase.from('tavoli').select('id,title').in('id', ids);
-
-      for (const r of myRes) {
-        const t = tavoli?.find(x => x.id === r.tavolo_id);
-        const div = document.createElement('div');
-        div.className='item';
-        div.innerHTML = `<h3>${t ? t.title : r.tavolo_id}</h3><div class="meta"><span>Prenotato: ${fmt(r.created_at)}</span></div>`;
-        host.appendChild(div);
-      }
-    }
-
-    // ===== Robust bindings =====
-    function bindDirectHandlers() {
-      const btns = [
-        ['btn-signup',   signUpEmailPassword],
-        ['btn-signin',   signInEmailPassword],
-        ['btn-signout',  signOut],
-        ['btn-save-profile', saveProfile],
-        ['btn-create',   createTavolo],
-        ['btn-refresh',  async () => { await pingRest(); await loadTavoli(); await loadMine(); }],
-        ['btn-ping',     async () => { const r = await pingRest(); alert('Ping: ' + JSON.stringify(r)); }]
-      ];
-      for (const [id, fn] of btns) {
-        const el = $(id);
-        if (!el) continue;
-        el.onclick = null;
-        el.addEventListener('click', async (e) => {
-          e.preventDefault();
-          console.debug('click:', id);
-          try { await fn(); } catch (err) { console.error('handler error', id, err); }
-        });
-      }
-    }
-
-    // Delegation safety
-    document.addEventListener('click', (ev) => {
-      const t = ev.target;
-      if (!(t instanceof HTMLElement)) return;
-      const id = t.id;
-      if (!id) return;
-      if (['btn-signup','btn-signin','btn-signout','btn-save-profile','btn-create','btn-refresh','btn-ping'].includes(id)) {
-        ev.preventDefault();
-        console.debug('delegated click:', id);
-      }
-    });
-
-    // Auth events & boot
-    supabase.auth.onAuthStateChange(async (_event, session) => {
-      showAppForUser(!!session);
-      if (session) { bindDirectHandlers(); await afterAuthUpdate(session); }
-      if (!session) {
-        $('tables').innerHTML = ''; $('mine').innerHTML = '';
-        $('whoami').textContent = 'Utente: —'; $('role').textContent = 'Ruolo: —';
-      }
-    });
-
-    (async () => {
-      const s = await supabase.auth.getSession();
-      showAppForUser(!!s.data.session);
-      bindDirectHandlers();
-      await afterAuthUpdate(s.data.session);
-    })();
-
-    async function afterAuthUpdate(sessionMaybe) {
-      let session = sessionMaybe || (await supabase.auth.getSession()).data.session || null;
-      const user = session?.user || null;
-      if (!user) return;
-
-      $('whoami').textContent = `Utente: ${user.email || user.id}`;
-
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username, avatar_url, role')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        $('username').value   = profile?.username   ?? '';
-        $('avatar_url').value = profile?.avatar_url ?? '';
-        $('role').textContent = 'Ruolo: ' + (profile?.role || 'user');
-      } catch {
-        $('role').textContent = 'Ruolo: —';
-      }
-
+    async function bootData(){
+      await loadProfile();
       await loadTavoli();
       await loadMine();
     }
+
+    // -------- bind buttons (single binding)
+    function bind(){
+      const map = new Map([
+        ['btn-signup',        signUp],
+        ['btn-signin',        signIn],
+        ['btn-anon',          signInAnon],
+        ['btn-signout',       signOut],
+        ['btn-save-profile',  saveProfile],
+        ['btn-ping',          async ()=>{ const r=await pingRest(); alert('Ping ' + JSON.stringify(r)); }],
+        ['btn-create',        createTavolo],
+        ['btn-refresh',       async ()=>{ await pingRest(); await loadTavoli(); await loadMine(); }]
+      ]);
+      for (const [id,fn] of map){
+        const el=$(id); if (!el) continue;
+        el.onclick = null;
+        el.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fn(); }catch(err){ console.error(id, err); } });
+      }
+    }
+
+    // -------- initial state
+    (async ()=>{
+      bind();
+      const { data: { session } } = await supabase.auth.getSession();
+      renderAuth(!!session);
+      if (session) await bootData();
+      // whoami badge
+      if (session) $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
+    })();
   </script>
 </body>
 </html>
