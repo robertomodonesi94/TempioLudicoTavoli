@@ -105,7 +105,6 @@
             </div>
             <div class="row">
               <button id="btn-save-profile" type="button" class="btn-accent">Salva profilo</button>
-              <!-- TEMP: explicit ping to prove network -->
               <button id="btn-ping" type="button">Ping API (debug)</button>
             </div>
           </div>
@@ -165,11 +164,11 @@
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-    // --- Global diagnostics ---
+    // Global error log
     window.addEventListener('error', (e) => console.error('window error:', e.error || e.message));
     window.addEventListener('unhandledrejection', (e) => console.error('unhandled rejection:', e.reason));
 
-    // ---- DEBUG: instrument global fetch (logs EVERY request) ----
+    // Instrument fetch so Network must show requests
     const __origFetch = window.fetch.bind(window);
     window.fetch = async (...args) => {
       const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '(Request)');
@@ -200,6 +199,16 @@
     const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
     const log = (id, msg, cls='muted') => { const el=$(id); if(el){ el.className=cls; el.textContent=msg; } };
 
+    // Force a simple REST GET using the current access token
+    async function pingRest() {
+      const s = await supabase.auth.getSession();
+      const token = s?.data?.session?.access_token;
+      if (!token) return { ok:false, reason:'no-token' };
+      const url = `${window.SUPABASE_URL}/rest/v1/profiles?select=id&limit=1`;
+      const headers = { apikey: window.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` };
+      return fetch(url, { headers }).then(async r => ({ ok:r.ok, status:r.status, body: await r.text() }));
+    }
+
     // Visibility
     function setVisible(el, on) {
       if (!el) return;
@@ -214,23 +223,6 @@
       if (isAuthed) bindDirectHandlers();
     }
 
-    // ===== Direct REST ping (bypasses SDK) =====
-    async function pingRest() {
-      const s = await supabase.auth.getSession();
-      const token = s?.data?.session?.access_token;
-      if (!token) {
-        console.warn('[PING] no session token — are you logged in?');
-        return { ok:false, reason:'no-token' };
-      }
-      const url = `${window.SUPABASE_URL}/rest/v1/profiles?select=id&limit=1`;
-      const headers = { apikey: window.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` };
-      console.log('[PING] GET', url);
-      const r = await fetch(url, { headers });
-      const text = await r.text();
-      console.log('[PING] status:', r.status, 'body:', text.slice(0, 200));
-      return { ok: r.ok, status: r.status, body: text };
-    }
-
     // ===== AUTH =====
     async function signUpEmailPassword() {
       log('auth-log', '');
@@ -238,7 +230,7 @@
       if (!email || !password) return log('auth-log','Email e password sono obbligatorie.','err');
       const { error } = await supabase.auth.signUp({ email, password, options:{ emailRedirectTo: window.location.origin + '/' } });
       if (error) return log('auth-log', error.message || String(error), 'err');
-      log('auth-log','Registrazione effettuata. Controlla la tua email per confermare l’account.','ok');
+      log('auth-log','Registrazione effettuata. Conferma via email richiesta.','ok');
     }
 
     async function signInEmailPassword() {
@@ -248,11 +240,12 @@
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         if ((error.message || '').toLowerCase().includes('confirm') || error.status === 400)
-          return log('auth-log','Email non confermata. Controlla la casella di posta per il link di verifica.','err');
+          return log('auth-log','Email non confermata. Verifica la casella di posta.','err');
         return log('auth-log', error.message || String(error), 'err');
       }
-      if (data?.session) { showAppForUser(true); log('auth-log','Accesso riuscito.','ok'); await afterAuthUpdate(data.session); }
-      else { const s = await supabase.auth.getSession(); showAppForUser(!!s.data.session); await afterAuthUpdate(s.data.session); }
+      showAppForUser(!!data?.session);
+      await afterAuthUpdate(data?.session || null);
+      log('auth-log','Accesso riuscito.','ok');
     }
 
     async function signOut() {
@@ -265,76 +258,45 @@
 
     // ===== PROFILE (RPC + fallback + read-back) =====
     async function saveProfile() {
-      console.log('[saveProfile] start');
-      const watchdog = setTimeout(() => {
-        console.warn('[saveProfile] watchdog: no completion after 5s');
-        log('profile-log', 'Timeout operazione (verifica rete o CSP).', 'err');
-      }, 5000);
+      // 1) Guaranteed network call for visibility
+      await pingRest();
 
-      try {
-        // Force a REST call first so Network MUST show something
-        await pingRest();
+      const s = await supabase.auth.getSession();
+      const user = s?.data?.session?.user || null;
+      if (!user) return log('profile-log', 'Devi essere loggato.', 'err');
 
-        const s = await supabase.auth.getSession();        // local
-        const session = s?.data?.session || null;
-        const user = session?.user || null;
-        if (!user) {
-          clearTimeout(watchdog);
-          console.warn('[saveProfile] no session/user');
-          return log('profile-log', 'Devi essere loggato.', 'err');
-        }
-        const userId = user.id;
-        const username   = (document.getElementById('username')?.value || '').trim() || null;
-        const avatar_url = (document.getElementById('avatar_url')?.value || '').trim() || null;
+      const username   = ($('username')?.value || '').trim() || null;
+      const avatar_url = ($('avatar_url')?.value || '').trim() || null;
 
-        console.log('[saveProfile] RPC update_my_profile ->', { username, avatar_url });
-        let { error: rpcErr } = await supabase.rpc('update_my_profile', {
-          p_username:   username,
-          p_full_name:  null,
-          p_avatar_url: avatar_url
-        });
+      let { error: rpcErr } = await supabase.rpc('update_my_profile', {
+        p_username:   username,
+        p_full_name:  null,
+        p_avatar_url: avatar_url
+      });
 
-        if (rpcErr && (rpcErr.code === '404' || rpcErr.code === '401' || rpcErr.code === '403' || /not exist|permission|rpc/i.test(rpcErr.message || ''))) {
-          console.warn('[saveProfile] RPC failed, fallback to direct UPDATE:', rpcErr);
-          const upd = await supabase
-            .from('profiles')
-            .update({ username, avatar_url, updated_at: new Date().toISOString() })
-            .eq('id', userId);
-          if (upd.error) {
-            clearTimeout(watchdog);
-            console.error('[saveProfile] direct UPDATE error:', upd.error);
-            return log('profile-log', upd.error.message || String(upd.error), 'err');
-          }
-        } else if (rpcErr) {
-          clearTimeout(watchdog);
-          console.error('[saveProfile] RPC error (no fallback):', rpcErr);
-          return log('profile-log', rpcErr.message || String(rpcErr), 'err');
-        }
-
-        const { data: profile, error: readErr } = await supabase
+      if (rpcErr) {
+        const upd = await supabase
           .from('profiles')
-          .select('username, avatar_url, updated_at')
-          .eq('id', userId)
-          .maybeSingle();
-
-        clearTimeout(watchdog);
-
-        if (readErr) {
-          console.warn('[saveProfile] read-back warning:', readErr);
-          return log('profile-log', 'Profilo aggiornato (verifica lettura non riuscita).', 'ok');
-        }
-
-        console.log('[saveProfile] updated profile:', profile);
-        log('profile-log', `Profilo aggiornato. (username: ${profile?.username ?? '—'})`, 'ok');
-      } catch (e) {
-        clearTimeout(watchdog);
-        console.error('[saveProfile] fatal error:', e);
-        log('profile-log', 'Errore inatteso: ' + (e.message || String(e)), 'err');
+          .update({ username, avatar_url, updated_at: new Date().toISOString() })
+          .eq('id', user.id);
+        if (upd.error) return log('profile-log', upd.error.message || String(upd.error), 'err');
       }
+
+      const { data: profile, error: readErr } = await supabase
+        .from('profiles')
+        .select('username, avatar_url, updated_at')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (readErr) return log('profile-log', 'Profilo aggiornato. Verifica lettura non riuscita.', 'ok');
+      log('profile-log', `Profilo aggiornato. (username: ${profile?.username ?? '—'})`, 'ok');
     }
 
     // ===== Data =====
     async function createTavolo() {
+      // 1) Guaranteed network call
+      await pingRest();
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return log('create-log','Devi essere loggato.','err');
 
@@ -351,7 +313,7 @@
 
       log('create-log','Tavolo creato.','ok');
       $('title').value=''; $('image_url').value=''; $('complexity').value='3';
-      await loadTavoli();
+      await loadTavoli(); await loadMine();
     }
 
     async function listTavoli() {
@@ -365,6 +327,8 @@
     }
 
     async function reserve(tavoloId) {
+      // 1) Guaranteed network call
+      await pingRest();
       const { error } = await supabase.from('reservations').insert({ tavolo_id: tavoloId });
       if (error) throw error;
     }
@@ -435,7 +399,7 @@
         ['btn-signout',  signOut],
         ['btn-save-profile', saveProfile],
         ['btn-create',   createTavolo],
-        ['btn-refresh',  async () => { await loadTavoli(); await loadMine(); }],
+        ['btn-refresh',  async () => { await pingRest(); await loadTavoli(); await loadMine(); }],
         ['btn-ping',     async () => { const r = await pingRest(); alert('Ping: ' + JSON.stringify(r)); }]
       ];
       for (const [id, fn] of btns) {
@@ -443,14 +407,15 @@
         if (!el) continue;
         el.onclick = null;
         el.addEventListener('click', async (e) => {
-          e.preventDefault(); console.debug('click:', id);
+          e.preventDefault();
+          console.debug('click:', id);
           try { await fn(); } catch (err) { console.error('handler error', id, err); }
         });
       }
     }
 
-    // Delegation (extra safety)
-    document.addEventListener('click', async (ev) => {
+    // Delegation safety
+    document.addEventListener('click', (ev) => {
       const t = ev.target;
       if (!(t instanceof HTMLElement)) return;
       const id = t.id;
@@ -461,9 +426,8 @@
       }
     });
 
-    // ===== Auth events & boot =====
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('auth event:', event, session);
+    // Auth events & boot
+    supabase.auth.onAuthStateChange(async (_event, session) => {
       showAppForUser(!!session);
       if (session) { bindDirectHandlers(); await afterAuthUpdate(session); }
       if (!session) {
@@ -479,11 +443,8 @@
       await afterAuthUpdate(s.data.session);
     })();
 
-    // ===== afterAuthUpdate =====
     async function afterAuthUpdate(sessionMaybe) {
-      let session = sessionMaybe;
-      if (!session) session = (await supabase.auth.getSession()).data.session || null;
-
+      let session = sessionMaybe || (await supabase.auth.getSession()).data.session || null;
       const user = session?.user || null;
       if (!user) return;
 
