@@ -52,7 +52,6 @@
         <span class="badge">sdk:<span id="sdk-ok">…</span></span>
         <span class="badge">auth:<span id="auth-ok">…</span></span>
       </div>
-      <!-- compact top actions -->
       <div class="row" id="top-actions" style="margin-left:auto">
         <button id="btn-open-create" class="btn-ghost hidden" type="button">Crea tavolo</button>
         <button id="btn-open-mine" class="btn-ghost hidden" type="button">Le mie prenotazioni</button>
@@ -87,7 +86,6 @@
 
     <!-- APP -->
     <div id="app" class="hidden" aria-hidden="true">
-      <!-- Listing stays visible; creator and reservations moved to dialogs -->
       <section class="card" style="margin-top:14px">
         <div class="row" style="align-items:center">
           <h2 style="flex:1">Elenco tavoli</h2>
@@ -129,8 +127,8 @@
               <option value="molto complesso">Molto complesso</option>
             </select>
           </div>
-          <div>
-            <label>Immagine (URL)</label>
+          <div id="image-create-wrap" class="hidden">
+            <label>Immagine (URL) — solo admin</label>
             <input id="image_url" type="url" placeholder="https://..." />
           </div>
         </div>
@@ -145,6 +143,56 @@
     <div class="dlg-foot">
       <button id="create-cancel" type="button">Chiudi</button>
       <button id="btn-create" type="button" class="btn-accent">Crea</button>
+    </div>
+  </dialog>
+
+  <!-- EDIT TABLE DIALOG (admin only) -->
+  <dialog id="edit-dialog">
+    <div class="dlg-head">Modifica tavolo (admin)</div>
+    <div class="dlg-body">
+      <section>
+        <input id="edit_id" type="hidden" />
+        <label>Titolo</label>
+        <input id="edit_title" />
+        <label>Descrizione</label>
+        <textarea id="edit_description"></textarea>
+        <div class="cols-2">
+          <div>
+            <label>Data e ora</label>
+            <input id="edit_starts_at" type="datetime-local" />
+          </div>
+          <div>
+            <label>Posti disponibili</label>
+            <input id="edit_max_seats" type="number" min="1" max="20" />
+          </div>
+        </div>
+        <div class="cols-2" style="margin-top:8px">
+          <div>
+            <label>Complessità</label>
+            <select id="edit_complexity_label">
+              <option value="molto semplice">Molto semplice</option>
+              <option value="semplice">Semplice</option>
+              <option value="medio">Medio</option>
+              <option value="complesso">Complesso</option>
+              <option value="molto complesso">Molto complesso</option>
+            </select>
+          </div>
+          <div>
+            <label>Immagine (URL)</label>
+            <input id="edit_image_url" type="url" placeholder="https://..." />
+          </div>
+        </div>
+        <label>Tag</label>
+        <div class="row" style="align-items:center">
+          <div id="tags-summary-edit" class="tags" style="min-height:30px"></div>
+          <button id="btn-tags-edit" type="button">Seleziona tag…</button>
+        </div>
+        <div id="edit-log" class="muted" style="margin-top:8px"></div>
+      </section>
+    </div>
+    <div class="dlg-foot">
+      <button id="edit-cancel" type="button">Chiudi</button>
+      <button id="btn-edit-save" type="button" class="btn-accent">Salva</button>
     </div>
   </dialog>
 
@@ -176,23 +224,21 @@
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-    // constants
-    const SUPER_UID = '8f966e17-8d57-4917-9e10-3296a8fbd604';
-
-    // badges
     const setBadge = (id, ok) => { const el=document.getElementById(id); if (el) el.textContent = ok ? 'OK' : 'err'; };
     setBadge('env-ok', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
     setBadge('sdk-ok', true);
 
-    // supabase singleton
     const SB_OPTS = { auth: { storageKey: 'sb-tempioludico-web-v1', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
     window.__supabase ??= createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, SB_OPTS);
-    window.supabase = window.__supabase;
+    const supabase = window.__supabase;
 
     const $ = (id) => document.getElementById(id);
     const fmt = (d) => d ? new Date(d).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}) : '—';
     const log = (id, msg) => { const el=$(id); if(el){ el.textContent=msg||''; } };
     const escapeHtml = (s)=> (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const toLocalInput = (iso)=>{ if(!iso) return ''; const d=new Date(iso); const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+
+    let IS_ADMIN = false;
 
     const AVAILABLE_TAGS = [
       'worker-placement','deck-building','engine-building','tableau-building','area-control',
@@ -205,29 +251,30 @@
 
     // ---------- TAG PICKER ----------
     let SELECTED_TAGS = [];
+    let EDIT_TAGS = [];
+    let TAGS_TARGET = 'create'; // 'create' | 'edit'
+
     function renderTagsSummary(){
       const host = $('tags-summary'); if (!host) return;
       host.innerHTML = '';
-      if (!SELECTED_TAGS.length){
-        const span = document.createElement('span');
-        span.className = 'muted';
-        span.textContent = 'Nessun tag selezionato';
-        host.appendChild(span);
-        return;
-      }
-      for (const t of SELECTED_TAGS){
-        const chip = document.createElement('span');
-        chip.className = 'tag';
-        chip.textContent = t;
-        host.appendChild(chip);
-      }
+      const arr = SELECTED_TAGS;
+      if (!arr.length){ const s=document.createElement('span'); s.className='muted'; s.textContent='Nessun tag selezionato'; host.appendChild(s); return; }
+      for (const t of arr){ const chip=document.createElement('span'); chip.className='tag'; chip.textContent=t; host.appendChild(chip); }
+    }
+    function renderTagsSummaryEdit(){
+      const host = $('tags-summary-edit'); if (!host) return;
+      host.innerHTML = '';
+      const arr = EDIT_TAGS;
+      if (!arr.length){ const s=document.createElement('span'); s.className='muted'; s.textContent='Nessun tag selezionato'; host.appendChild(s); return; }
+      for (const t of arr){ const chip=document.createElement('span'); chip.className='tag'; chip.textContent=t; host.appendChild(chip); }
     }
     function openTagsDialog(){
       const list = $('tags-list'); list.innerHTML='';
+      const source = TAGS_TARGET==='edit' ? EDIT_TAGS : SELECTED_TAGS;
       for (const t of AVAILABLE_TAGS){
         const id = 'tag_' + t.replace(/\W+/g,'_');
         const label = document.createElement('label');
-        const checked = SELECTED_TAGS.includes(t) ? 'checked' : '';
+        const checked = source.includes(t) ? 'checked' : '';
         label.innerHTML = `<input type="checkbox" id="${id}" value="${t}" ${checked}><span>${t}</span>`;
         list.appendChild(label);
       }
@@ -235,35 +282,41 @@
     }
     function applyTagsDialog(){
       const list = $('tags-list');
-      SELECTED_TAGS = Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value);
+      const chosen = Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value);
+      if (TAGS_TARGET==='edit'){ EDIT_TAGS = chosen; renderTagsSummaryEdit(); }
+      else { SELECTED_TAGS = chosen; renderTagsSummary(); }
       $('tags-dialog').close();
-      renderTagsSummary();
     }
     function cancelTagsDialog(){ $('tags-dialog').close(); }
 
-    // ---------- AUTH + BOOT ----------
+    // ---------- AUTH + ROLE ----------
     function renderAuth(isAuthed){
       $('auth').classList.toggle('hidden', isAuthed);
       $('app').classList.toggle('hidden', !isAuthed);
       $('app').setAttribute('aria-hidden', String(!isAuthed));
-      // show top compact buttons only when authed
       $('btn-open-create').classList.toggle('hidden', !isAuthed);
       $('btn-open-mine').classList.toggle('hidden', !isAuthed);
       setBadge('auth-ok', isAuthed);
+      // creation image availability by role
+      $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
     }
-    function resetUI(){
-      $('whoami').textContent='Utente: —';
-      $('role').textContent='Ruolo: —';
-      $('tables').innerHTML=''; $('mine').innerHTML='';
-      log('tables-log',''); log('auth-log',''); log('profile-log',''); log('create-log','');
-      SELECTED_TAGS = []; renderTagsSummary();
-      $('btn-become-admin')?.classList.add('hidden');
+    async function loadRole(){
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
+      // Ensure profile row exists, then read role
+      await supabase.from('profiles').upsert({ id: user.id }, { onConflict: 'id' }).select().maybeSingle().catch(()=>null);
+      const { data, error } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      const role = (!error && data?.role) ? data.role : 'user';
+      IS_ADMIN = role === 'admin';
+      $('role').textContent = 'Ruolo: ' + role;
+      $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
     }
 
     let bootPromise = null;
     function bootDataOnce(){
       if (bootPromise) return bootPromise;
       bootPromise = (async ()=>{
+        await loadRole();
         renderTagsSummary();
         await Promise.all([loadTavoli(), loadMine()]);
       })().finally(()=>{ bootPromise = null; });
@@ -282,9 +335,19 @@
       }
     }).data.subscription;
 
+    function resetUI(){
+      $('whoami').textContent='Utente: —';
+      $('role').textContent='Ruolo: —';
+      $('tables').innerHTML=''; $('mine').innerHTML='';
+      log('tables-log',''); log('auth-log',''); log('create-log',''); log('edit-log','');
+      SELECTED_TAGS=[]; EDIT_TAGS=[]; renderTagsSummary(); renderTagsSummaryEdit();
+      IS_ADMIN=false;
+    }
+
     // ---------- DATA ----------
     function renderTableItem(t){
       const tagChips = (t.tags || []).map(x=>`<span class="tag">${x}</span>`).join('');
+      const adminBtns = IS_ADMIN ? `<button class="btn-accent" data-act="edit" data-id="${t.id}" type="button">Modifica</button>` : '';
       return `
         ${t.image_url ? `<img class="thumb" src="${t.image_url}" alt="${t.title}" />` : `<div class="noimg">No image</div>`}
         <h3 style="margin:8px 0 6px 0">${t.title}</h3>
@@ -300,6 +363,7 @@
         <div class="row" style="margin-top:8px">
           <button class="btn-accent" data-act="reserve" data-id="${t.id}" type="button">Prenota</button>
           ${t.can_delete ? `<button class="btn-danger" data-act="delete" data-id="${t.id}" type="button">Elimina</button>` : ``}
+          ${adminBtns}
         </div>
       `;
     }
@@ -344,6 +408,7 @@
         can_delete: me && t.creator_id === me
       }));
     }
+
     let tavoliCtrl = null;
     async function loadTavoli(){
       tavoliCtrl?.abort();
@@ -374,6 +439,15 @@
               await loadTavoli(); await loadMine();
             });
           }
+
+          const editBtn = el.querySelector('[data-act="edit"]');
+          if (editBtn){
+            editBtn.addEventListener('click', async (ev)=>{
+              ev.preventDefault();
+              openEditDialog(t);
+            });
+          }
+
           frag.appendChild(el);
         }
         host.appendChild(frag);
@@ -430,7 +504,7 @@
       }
     }
 
-    // ---------- CREATE TABLE ----------
+    // ---------- CREATE ----------
     function parseFutureLocalDateTime(v){
       if (!v) return { ok:false, error:'Data e ora obbligatorie' };
       const d = new Date(v);
@@ -447,7 +521,7 @@
       const starts_input = $('starts_at').value;
       const seats = Number($('max_seats').value);
       const complexity_label = $('complexity_label').value;
-      const image_url = $('image_url').value.trim();
+      const image_url = IS_ADMIN ? $('image_url').value.trim() : ''; // ignore if not admin
       const tags = SELECTED_TAGS.slice();
 
       if (!title) return log('create-log','Titolo obbligatorio');
@@ -460,7 +534,7 @@
 
       const payload = {
         title, description, starts_at: dt.value, max_seats: seats,
-        complexity_label, image_url: image_url || null, tags, creator_id: user.id
+        complexity_label, image_url: image_url || null, tags
       };
 
       const { error } = await supabase.from('tavoli').insert(payload);
@@ -474,41 +548,54 @@
       }
     }
 
-    // ---------- Bind + initial ----------
-    function bind(){
-      const map = new Map([
-        ['btn-signup',        signUp],
-        ['btn-signin',        signIn],
-        ['btn-anon',          signInAnon],
-        ['btn-signout',       signOut],
-        ['btn-create',        createTavolo],
-        ['btn-refresh',       async ()=>{ await Promise.all([loadTavoli(), loadMine()]); } ],
-        ['btn-tags',          openTagsDialog],
-        ['tags-apply',        applyTagsDialog],
-        ['tags-cancel',       cancelTagsDialog],
-        // open/close dialogs
-        ['btn-open-create',   ()=>{ $('create-dialog').showModal(); }],
-        ['create-cancel',     ()=>{ $('create-dialog').close(); }],
-        ['btn-open-mine',     async ()=>{ await loadMine(); $('mine-dialog').showModal(); }],
-        ['mine-close',        ()=>{ $('mine-dialog').close(); }],
-      ]);
-      for (const [id,fn] of map){
-        const el=$(id); if (!el) continue;
-        el.onclick = null;
-        el.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fn(); }catch(err){ console.error(id, err); } });
-      }
+    // ---------- EDIT (ADMIN) ----------
+    function openEditDialog(t){
+      if (!IS_ADMIN) return alert('Solo admin');
+      $('edit_id').value = t.id;
+      $('edit_title').value = t.title || '';
+      $('edit_description').value = t.description || '';
+      $('edit_max_seats').value = t.max_seats ?? '';
+      $('edit_complexity_label').value = t.complexity_label || 'medio';
+      $('edit_image_url').value = t.image_url || '';
+      $('edit_starts_at').value = toLocalInput(t.starts_at);
+      EDIT_TAGS = Array.isArray(t.tags) ? [...t.tags] : [];
+      renderTagsSummaryEdit();
+      $('edit-dialog').showModal();
+    }
 
-      // click outside to close dialogs
-      for (const dlgId of ['create-dialog','mine-dialog','tags-dialog']){
-        const dlg = $(dlgId);
-        dlg?.addEventListener('click', function onClick(e){
-          const rect = dlg.getBoundingClientRect();
-          const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
-          if (!inside) dlg.close();
-        });
+    async function saveEdit(){
+      if (!IS_ADMIN) return log('edit-log','Non autorizzato');
+      const id = $('edit_id').value;
+      const title = $('edit_title').value.trim();
+      const description = $('edit_description').value.trim();
+      const seats = Number($('edit_max_seats').value);
+      const complexity_label = $('edit_complexity_label').value;
+      const starts_raw = $('edit_starts_at').value;
+      const dt = parseFutureLocalDateTime(starts_raw);
+      if (!title) return log('edit-log','Titolo obbligatorio');
+      if (!description) return log('edit-log','Descrizione obbligatoria');
+      if (!dt.ok) return log('edit-log', dt.error);
+      if (!Number.isFinite(seats) || seats < 1) return log('edit-log','Posti deve essere >= 1');
+
+      const payload = {
+        title,
+        description,
+        max_seats: seats,
+        complexity_label,
+        starts_at: dt.value,
+        image_url: $('edit_image_url').value.trim() || null,
+        tags: EDIT_TAGS.slice()
+      };
+
+      const { error } = await supabase.from('tavoli').update(payload).eq('id', id);
+      log('edit-log', error ? error.message : 'Salvato');
+      if (!error){
+        await loadTavoli();
+        $('edit-dialog').close();
       }
     }
 
+    // ---------- AUTH actions ----------
     async function signUp(){
       log('auth-log','');
       const email=$('email').value.trim(), password=$('password').value;
@@ -536,6 +623,41 @@
       await supabase.auth.signOut();
       resetUI();
       log('auth-log','Signed out');
+    }
+
+    // ---------- Bind + initial ----------
+    function bind(){
+      const map = new Map([
+        ['btn-signup',        signUp],
+        ['btn-signin',        signIn],
+        ['btn-anon',          signInAnon],
+        ['btn-signout',       signOut],
+        ['btn-create',        createTavolo],
+        ['btn-refresh',       async ()=>{ await Promise.all([loadTavoli(), loadMine()]); } ],
+        ['btn-open-create',   ()=>{ $('create-dialog').showModal(); }],
+        ['create-cancel',     ()=>{ $('create-dialog').close(); }],
+        ['btn-open-mine',     async ()=>{ await loadMine(); $('mine-dialog').showModal(); }],
+        ['mine-close',        ()=>{ $('mine-dialog').close(); }],
+        ['btn-tags',          ()=>{ TAGS_TARGET='create'; openTagsDialog(); }],
+        ['btn-tags-edit',     ()=>{ TAGS_TARGET='edit'; openTagsDialog(); }],
+        ['tags-apply',        applyTagsDialog],
+        ['tags-cancel',       cancelTagsDialog],
+        ['btn-edit-save',     saveEdit],
+        ['edit-cancel',       ()=>{ $('edit-dialog').close(); }],
+      ]);
+      for (const [id,fn] of map){
+        const el=$(id); if (!el) continue;
+        el.onclick = null;
+        el.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fn(); }catch(err){ console.error(id, err); } });
+      }
+      for (const dlgId of ['create-dialog','mine-dialog','tags-dialog','edit-dialog']){
+        const dlg = $(dlgId);
+        dlg?.addEventListener('click', function onClick(e){
+          const rect = dlg.getBoundingClientRect();
+          const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+          if (!inside) dlg.close();
+        });
+      }
     }
 
     (async ()=>{
