@@ -51,31 +51,21 @@
         <span class="badge">env:<span id="env-ok">…</span></span>
         <span class="badge">sdk:<span id="sdk-ok">…</span></span>
         <span class="badge">auth:<span id="auth-ok">…</span></span>
-      </div>
-      <div class="row" id="top-actions" style="margin-left:auto">
-        <button id="btn-open-create" class="btn-ghost hidden" type="button">Crea tavolo</button>
-        <button id="btn-open-mine" class="btn-ghost hidden" type="button">Le mie prenotazioni</button>
+        <button id="btn-login" type="button" class="btn-ghost">Login</button>
+        <button id="btn-logout" type="button" class="btn-ghost hidden">Logout</button>
+        <button id="btn-open-mine" type="button" class="btn-ghost hidden">Le mie prenotazioni</button>
+        <button id="btn-open-create" type="button" class="btn-ghost hidden">Crea tavolo</button>
       </div>
     </header>
 
-    <!-- AUTH -->
-    <section id="auth" class="card">
-      <h2>Accesso</h2>
-      <div class="row">
+    <!-- STATUS -->
+    <section class="card" style="margin-top:12px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <img src="LogoTempioLudicoNoBackground.PNG" width="44" height="44" alt="Logo" style="border-radius:50%;border:1px solid rgba(0,0,0,.1)" />
         <div>
-          <label>Email</label>
-          <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+          <div class="muted">Tempio Ludico</div>
+          <div id="status" class="muted">Pronto</div>
         </div>
-        <div>
-          <label>Password</label>
-          <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
-        </div>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <button id="btn-signup"  type="button" class="btn-accent">Registrati</button>
-        <button id="btn-signin"  type="button">Entra</button>
-        <button id="btn-signout" type="button" class="btn-danger">Esci</button>
-        <button id="btn-anon"    type="button">Anon</button>
       </div>
       <div id="auth-log" class="muted" style="margin-top:8px"></div>
       <div class="row" style="margin-top:6px">
@@ -112,24 +102,22 @@
             <input id="starts_at" type="datetime-local" />
           </div>
           <div>
-            <label>Posti disponibili</label>
-            <input id="max_seats" type="number" min="1" max="20" />
+            <label>Posti massimi</label>
+            <input id="max_seats" type="number" min="1" step="1" />
           </div>
         </div>
-        <div class="cols-2" style="margin-top:8px">
+        <div class="cols-2">
           <div>
             <label>Complessità</label>
             <select id="complexity_label">
-              <option value="molto semplice">Molto semplice</option>
-              <option value="semplice">Semplice</option>
-              <option value="medio" selected>Medio</option>
-              <option value="complesso">Complesso</option>
-              <option value="molto complesso">Molto complesso</option>
+              <option value="facile">facile</option>
+              <option value="medio" selected>medio</option>
+              <option value="difficile">difficile</option>
             </select>
           </div>
-          <div id="image-create-wrap" class="hidden">
-            <label>Immagine (URL) — solo admin</label>
-            <input id="image_url" type="url" placeholder="https://..." />
+          <div>
+            <label>Immagine URL</label>
+            <input id="image_url" placeholder="https://…" />
           </div>
         </div>
         <label>Tag</label>
@@ -146,9 +134,9 @@
     </div>
   </dialog>
 
-  <!-- EDIT TABLE DIALOG (admin only) -->
+  <!-- EDIT DIALOG -->
   <dialog id="edit-dialog">
-    <div class="dlg-head">Modifica tavolo (admin)</div>
+    <div class="dlg-head">Modifica tavolo</div>
     <div class="dlg-body">
       <section>
         <input id="edit_id" type="hidden" />
@@ -162,24 +150,22 @@
             <input id="edit_starts_at" type="datetime-local" />
           </div>
           <div>
-            <label>Posti disponibili</label>
-            <input id="edit_max_seats" type="number" min="1" max="20" />
+            <label>Posti massimi</label>
+            <input id="edit_max_seats" type="number" min="1" step="1" />
           </div>
         </div>
-        <div class="cols-2" style="margin-top:8px">
+        <div class="cols-2">
           <div>
             <label>Complessità</label>
             <select id="edit_complexity_label">
-              <option value="molto semplice">Molto semplice</option>
-              <option value="semplice">Semplice</option>
-              <option value="medio">Medio</option>
-              <option value="complesso">Complesso</option>
-              <option value="molto complesso">Molto complesso</option>
+              <option value="facile">facile</option>
+              <option value="medio" selected>medio</option>
+              <option value="difficile">difficile</option>
             </select>
           </div>
           <div>
-            <label>Immagine (URL)</label>
-            <input id="edit_image_url" type="url" placeholder="https://..." />
+            <label>Immagine URL</label>
+            <input id="edit_image_url" placeholder="https://…" />
           </div>
         </div>
         <label>Tag</label>
@@ -212,68 +198,54 @@
     <div class="dlg-head">Seleziona tag</div>
     <div class="dlg-body">
       <div id="tags-list" class="checklist"></div>
+      <div class="row" style="margin-top:8px">
+        <input id="new-tag" placeholder="Aggiungi nuovo tag" />
+        <button id="add-tag" type="button">Aggiungi</button>
+      </div>
     </div>
     <div class="dlg-foot">
-      <button type="button" id="tags-cancel">Annulla</button>
-      <button type="button" id="tags-apply" class="btn-accent">Applica</button>
+      <button id="tags-cancel" type="button">Annulla</button>
+      <button id="tags-apply" type="button" class="btn-accent">Applica</button>
     </div>
   </dialog>
 
-  <script src="/env.js"></script>
-
-  <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-    // Badges
-    const setBadge = (id, ok) => { const el=document.getElementById(id); if (el) el.textContent = ok ? 'OK' : 'err'; };
-    setBadge('env-ok', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
-    setBadge('sdk-ok', true);
-
-    // Supabase client — use default storage key so existing sessions are detected
-    const SB_OPTS = { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
-    window.__supabase ??= createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, SB_OPTS);
-    const supabase = window.__supabase;
-
-    // DOM helpers
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="env.js"></script>
+  <script>
     const $ = (id) => document.getElementById(id);
-    const fmt = (d) => d ? new Date(d).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}) : '—';
-    const log = (id, msg) => { const el=$(id); if(el){ el.textContent=msg||''; } };
-    const escapeHtml = (s)=> (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    const toInputLocal = (iso)=>{ if(!iso) return ''; const d=new Date(iso); const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+    const fmt = (iso) => new Date(iso).toLocaleString('it-IT');
+    const toInputLocal = (iso) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      const pad = (n)=>String(n).padStart(2,'0');
+      return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+    };
+    const parseFutureLocalDateTime = (v)=>{
+      if (!v) return { ok:false, error:'Data e ora obbligatorie' };
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return { ok:false, error:'Data non valida' };
+      return { ok:true, value:d.toISOString() };
+    };
+    const log = (id, msg)=>{ const el=$(id); if (el) el.textContent = msg || ''; };
 
-    // State
     let IS_ADMIN = false;
+    let AVAILABLE_TAGS = ['boardgame','gdr','wargame','skirmish','party','torneo'];
     let SELECTED_TAGS = [];
     let EDIT_TAGS = [];
-    let TAGS_TARGET = 'create'; // 'create' | 'edit'
+    let TAGS_TARGET = 'create';
 
-    const AVAILABLE_TAGS = [
-      'worker-placement','deck-building','engine-building','tableau-building','area-control',
-      'drafting','set-collection','tile-laying','push-your-luck','trick-taking',
-      'dexterity','action-selection','negotiation','auction','memory',
-      'roll-and-write','roll-and-move',
-      'cooperative','semi-cooperative','competitive','team-based','traitor',
-      'hidden-roles','social-deduction','take-that','low-interaction'
-    ];
+    // Supabase
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // UI state
-    function renderAuth(isAuthed){
-      $('auth').classList.toggle('hidden', isAuthed);
-      $('app').classList.toggle('hidden', !isAuthed);
-      $('app').setAttribute('aria-hidden', String(!isAuthed));
-      $('btn-open-create').classList.toggle('hidden', !isAuthed);
-      $('btn-open-mine').classList.toggle('hidden', !isAuthed);
-      setBadge('auth-ok', isAuthed);
-      $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
-    }
-    function resetUI(){
-      $('whoami').textContent='Utente: —';
-      $('role').textContent='Ruolo: —';
-      $('tables').innerHTML=''; $('mine').innerHTML='';
-      log('tables-log',''); log('auth-log',''); log('create-log',''); log('edit-log','');
-      SELECTED_TAGS=[]; EDIT_TAGS=[]; renderTagsSummary(); renderTagsSummaryEdit();
-      IS_ADMIN=false;
-      $('image-create-wrap').classList.add('hidden');
+    // Auth UI
+    function renderAuth(authed){
+      $('btn-login').classList.toggle('hidden', authed);
+      $('btn-logout').classList.toggle('hidden', !authed);
+      $('btn-open-create').classList.toggle('hidden', !authed || !IS_ADMIN);
+      $('btn-open-mine').classList.toggle('hidden', !authed);
+      $('app').classList.toggle('hidden', !authed);
+      $('app').setAttribute('aria-hidden', String(!authed));
+      $('auth-ok').textContent = authed ? 'on' : 'off';
     }
 
     // Tags UI
@@ -303,52 +275,17 @@
       }
       $('tags-dialog').showModal();
     }
-    function applyTagsDialog(){
-      const list = $('tags-list');
-      const chosen = Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value);
-      if (TAGS_TARGET==='edit'){ EDIT_TAGS = chosen; renderTagsSummaryEdit(); }
-      else { SELECTED_TAGS = chosen; renderTagsSummary(); }
-      $('tags-dialog').close();
-    }
     function cancelTagsDialog(){ $('tags-dialog').close(); }
-
-    // Role
-    async function loadRole(){
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user){ IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
-      // Ensure profile row exists, then read role
-      await supabase.from('profiles').upsert({ id: user.id }, { onConflict: 'id' }).select().maybeSingle().catch(()=>null);
-      const { data, error } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-      const role = (!error && data?.role) ? data.role : 'user';
-      IS_ADMIN = role === 'admin';
-      $('role').textContent = 'Ruolo: ' + role;
-      $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
+    function applyTagsDialog(){
+      const source = TAGS_TARGET==='edit' ? EDIT_TAGS : SELECTED_TAGS;
+      const inputs = [...document.querySelectorAll('#tags-list input[type="checkbox"]')];
+      const picked = inputs.filter(i=>i.checked).map(i=>i.value);
+      source.splice(0, source.length, ...picked);
+      if (TAGS_TARGET==='edit') renderTagsSummaryEdit(); else renderTagsSummary();
+      $('tags-dialog').close();
     }
 
     // Data
-    function renderTableItem(t){
-      const tagChips = (t.tags || []).map(x=>`<span class="tag">${x}</span>`).join('');
-      const adminBtns = IS_ADMIN ? `<button class="btn-accent" data-act="edit" data-id="${t.id}" type="button">Modifica</button>` : '';
-      return `
-        ${t.image_url ? `<img class="thumb" src="${t.image_url}" alt="${t.title}" />` : `<div class="noimg">No image</div>`}
-        <h3 style="margin:8px 0 6px 0">${t.title}</h3>
-        <div class="meta">
-          <span>Creato da: ${t.creator_username || t.creator_id || '—'}</span>
-          <span>Complessità: ${t.complexity_label || '—'}</span>
-          <span>Posti: ${t.max_seats ?? '—'}</span>
-          <span>Data: ${fmt(t.starts_at)}</span>
-          <span>Prenotazioni: ${t.reservations_count}</span>
-        </div>
-        <div class="muted" style="margin-top:6px">${t.description ? escapeHtml(t.description) : ''}</div>
-        <div class="tags">${tagChips}</div>
-        <div class="row" style="margin-top:8px">
-          <button class="btn-accent" data-act="reserve" data-id="${t.id}" type="button">Prenota</button>
-          ${t.can_delete ? `<button class="btn-danger" data-act="delete" data-id="${t.id}" type="button">Elimina</button>` : ``}
-          ${adminBtns}
-        </div>
-      `;
-    }
-
     async function fetchTavoli(signal){
       const { data, error } = await supabase
         .from('tavoli')
@@ -378,75 +315,95 @@
       const [{ data: userObj }] = await Promise.all([supabase.auth.getUser()]);
       const me = userObj?.user?.id || null;
       const [rows, counts] = await Promise.all([fetchTavoli(signal), fetchReservationCounts(signal)]);
-      const seen = new Set();
-      const uniq = rows.filter(t => !seen.has(t.id) && seen.add(t.id));
-      const creatorIds = [...new Set(uniq.map(x=>x.creator_id).filter(Boolean))];
-      const nameMap = await fetchCreatorsUsernames(creatorIds);
-      return uniq.map(t => ({
-        ...t,
-        reservations_count: counts.get(t.id) || 0,
-        creator_username: nameMap.get(t.creator_id) || null,
-        can_delete: me && t.creator_id === me
-      }));
+      const creatorIds = [...new Set(rows.map(r=>r.creator_id).filter(Boolean))];
+      const usernames = await fetchCreatorsUsernames(creatorIds);
+      for (const r of rows){
+        r.seats_taken = counts.get(r.id) || 0;
+        r.me_reserved = false;
+      }
+      if (me){
+        const { data: myRes } = await supabase.from('reservations').select('tavolo_id').eq('user_id', me);
+        const set = new Set((myRes || []).map(x=>x.tavolo_id));
+        for (const r of rows) r.me_reserved = set.has(r.id);
+      }
+      return { rows, usernames };
     }
 
-    let tavoliCtrl = null;
+    function tavoloCard(t, usernames){
+      const el = document.createElement('div');
+      el.className='item';
+      const hasImg = t.image_url && /^https?:\/\//.test(t.image_url);
+      el.innerHTML = `
+        <div class="grid" style="grid-template-columns:120px 1fr;gap:12px">
+          <div>${hasImg ? `<img class="thumb" src="${t.image_url}" alt="">` : `<div class="noimg">Nessuna immagine</div>`}</div>
+          <div>
+            <h3 style="margin:0">${t.title}</h3>
+            <div class="meta">
+              <span>${fmt(t.starts_at)}</span>
+              <span>Posti: ${t.seats_taken}/${t.max_seats}</span>
+              <span>Diff.: ${t.complexity_label||'medio'}</span>
+              <span>Creato da: ${usernames.get(t.creator_id) || t.creator_id || '—'}</span>
+            </div>
+            <p class="muted" style="margin:8px 0 0 0">${t.description||''}</p>
+            <div class="tags">${(t.tags||[]).map(x=>`<span class="tag">${x}</span>`).join('')}</div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn-accent" data-act="reserve" ${t.seats_taken>=t.max_seats?'disabled':''}>Prenota</button>
+              <button class="btn-danger" data-act="cancel" ${t.me_reserved?'':'disabled'}>Cancella</button>
+              <button data-act="edit" ${IS_ADMIN?'':'disabled'}>Modifica</button>
+              <button data-act="delete" class="btn-danger" ${IS_ADMIN?'':'disabled'}>Elimina</button>
+            </div>
+          </div>
+        </div>`;
+      el.querySelector('[data-act="reserve"]').addEventListener('click', async (ev)=>{
+        ev.preventDefault();
+        const { error } = await supabase.from('reservations').insert({ tavolo_id: t.id });
+        if (error) return alert('Errore prenotazione: ' + error.message);
+        await loadTavoli();
+      });
+      el.querySelector('[data-act="cancel"]').addEventListener('click', async (ev)=>{
+        ev.preventDefault();
+        const { error } = await supabase.from('reservations').delete().eq('tavolo_id', t.id);
+        if (error) return alert('Errore cancellazione: ' + error.message);
+        await loadTavoli();
+      });
+      el.querySelector('[data-act="edit"]').addEventListener('click', (ev)=>{ ev.preventDefault(); openEdit(t); });
+      el.querySelector('[data-act="delete"]').addEventListener('click', async (ev)=>{
+        ev.preventDefault();
+        if (!confirm('Eliminare questo tavolo?')) return;
+        const { error } = await supabase.from('tavoli').delete().eq('id', t.id);
+        if (error) return alert('Errore eliminazione: ' + error.message);
+        await loadTavoli();
+      });
+      return el;
+    }
+
+    // Load tables
+    let listCtrl = null;
     async function loadTavoli(){
-      tavoliCtrl?.abort();
-      tavoliCtrl = new AbortController();
+      if (listCtrl) listCtrl.abort();
+      listCtrl = new AbortController();
+      log('tables-log','Caricamento…');
       const host = $('tables'); host.innerHTML='';
       try{
-        const items = await listTavoliWithExtras(tavoliCtrl.signal);
-        const frag = document.createDocumentFragment();
-        for (const t of items){
-          const el = document.createElement('div');
-          el.className='item';
-          el.innerHTML = renderTableItem(t);
-
-          el.querySelector('[data-act="reserve"]').addEventListener('click', async (ev)=>{
-            ev.preventDefault();
-            const { error } = await supabase.from('reservations').insert({ tavolo_id: t.id });
-            if (error) alert('Errore: ' + error.message);
-            await loadTavoli(); await loadMine();
-          });
-
-          const delBtn = el.querySelector('[data-act="delete"]');
-          if (delBtn){
-            delBtn.addEventListener('click', async (ev)=>{
-              ev.preventDefault();
-              if (!confirm('Eliminare questo tavolo?')) return;
-              const { error } = await supabase.from('tavoli').delete().eq('id', t.id);
-              if (error) return alert('Errore eliminazione: ' + error.message);
-              await loadTavoli(); await loadMine();
-            });
-          }
-
-          const editBtn = el.querySelector('[data-act="edit"]');
-          if (editBtn){
-            editBtn.addEventListener('click', async (ev)=>{
-              ev.preventDefault();
-              openEditDialog(t);
-            });
-          }
-
-          frag.appendChild(el);
+        const { rows, usernames } = await listTavoliWithExtras(listCtrl.signal);
+        if (!rows.length){ host.innerHTML = '<div class="muted">Nessun tavolo</div>'; }
+        else {
+          const frag = document.createDocumentFragment();
+          for (const r of rows) frag.appendChild(tavoloCard(r, usernames));
+          host.appendChild(frag);
         }
-        host.appendChild(frag);
-        if (!items.length) host.innerHTML = '<div class="muted">Nessun tavolo</div>';
-        $('tables-log').textContent = `${items.length} tavoli`;
-      }catch(e){
-        if (e?.name === 'AbortError') return;
-        $('tables-log').textContent = e.message || String(e);
+        log('tables-log','');
+      }catch(err){
+        log('tables-log','Errore: ' + err.message);
       }
     }
 
     // My reservations
     let mineCtrl = null;
     async function loadMine(){
-      mineCtrl?.abort();
+      if (mineCtrl) mineCtrl.abort();
       mineCtrl = new AbortController();
-      const host=$('mine'); if (!host) return;
-      host.innerHTML='';
+      const host = $('mine'); host.innerHTML='';
       try{
         const { data, error } = await supabase
           .from('reservations')
@@ -479,59 +436,44 @@
           frag.appendChild(el);
         }
         host.appendChild(frag);
-      }catch(e){
-        if (e?.name === 'AbortError') return;
-        host.innerHTML='';
+      }catch(err){
+        host.innerHTML = '<div class="muted">Errore: '+err.message+'</div>';
       }
     }
 
     // Create
-    function parseFutureLocalDateTime(v){
-      if (!v) return { ok:false, error:'Data e ora obbligatorie' };
-      const d = new Date(v);
-      if (Number.isNaN(+d)) return { ok:false, error:'Formato data/ora non valido' };
-      if (d.getTime() <= Date.now()+60*1000) return { ok:false, error:'La data deve essere nel futuro' };
-      return { ok:true, value:d.toISOString() };
-    }
     async function createTavolo(){
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return log('create-log','Login required');
-
+      if (!IS_ADMIN) return log('create-log','Non autorizzato');
       const title = $('title').value.trim();
       const description = $('description').value.trim();
-      const starts_input = $('starts_at').value;
       const seats = Number($('max_seats').value);
       const complexity_label = $('complexity_label').value;
-      const image_url = IS_ADMIN ? $('image_url').value.trim() : '';
-      const tags = SELECTED_TAGS.slice();
-
+      const starts_raw = $('starts_at').value;
+      const dt = parseFutureLocalDateTime(starts_raw);
       if (!title) return log('create-log','Titolo obbligatorio');
       if (!description) return log('create-log','Descrizione obbligatoria');
-      const dt = parseFutureLocalDateTime(starts_input);
       if (!dt.ok) return log('create-log', dt.error);
       if (!Number.isFinite(seats) || seats < 1) return log('create-log','Posti deve essere >= 1');
-      const allowed = new Set(['molto semplice','semplice','medio','complesso','molto complesso']);
-      if (!allowed.has(complexity_label)) return log('create-log','Complessità non valida');
 
       const payload = {
-        title, description, starts_at: dt.value, max_seats: seats,
-        complexity_label, image_url: image_url || null, tags
+        title,
+        description,
+        max_seats: seats,
+        complexity_label,
+        starts_at: dt.value,
+        image_url: $('image_url').value.trim() || null,
+        tags: SELECTED_TAGS.slice()
       };
-
       const { error } = await supabase.from('tavoli').insert(payload);
-      log('create-log', error ? error.message : 'Tavolo creato');
-      if (!error){
-        $('title').value=''; $('description').value='';
-        $('starts_at').value=''; $('max_seats').value='';
-        $('image_url').value=''; $('complexity_label').value='medio';
-        SELECTED_TAGS = []; renderTagsSummary();
-        await loadTavoli(); await loadMine();
-      }
+      if (error) return log('create-log','Errore: ' + error.message);
+      $('create-dialog').close();
+      $('title').value=''; $('description').value=''; $('starts_at').value=''; $('max_seats').value=''; $('image_url').value='';
+      SELECTED_TAGS=[]; renderTagsSummary();
+      await loadTavoli();
     }
 
-    // Edit (admin)
-    function openEditDialog(t){
-      if (!IS_ADMIN) return alert('Solo admin');
+    // Edit
+    function openEdit(t){
       $('edit_id').value = t.id;
       $('edit_title').value = t.title || '';
       $('edit_description').value = t.description || '';
@@ -566,63 +508,42 @@
         image_url: $('edit_image_url').value.trim() || null,
         tags: EDIT_TAGS.slice()
       };
-
       const { error } = await supabase.from('tavoli').update(payload).eq('id', id);
-      log('edit-log', error ? error.message : 'Salvato');
-      if (!error){
-        await loadTavoli();
-        $('edit-dialog').close();
-      }
+      if (error) return log('edit-log','Errore: ' + error.message);
+      $('edit-dialog').close();
+      await loadTavoli();
     }
 
-    // Auth actions
-    async function signUp(){
-      log('auth-log','');
-      const email=$('email').value.trim(), password=$('password').value;
-      if (!email || !password) return log('auth-log','Email e password richieste');
-      const { error } = await supabase.auth.signUp({ email, password, options:{ emailRedirectTo: location.origin + '/' } });
-      log('auth-log', error ? error.message : 'Registrato. Controlla la mail.');
-    }
-    async function signIn(){
-      log('auth-log','');
-      const email=$('email').value.trim(), password=$('password').value;
-      if (!email || !password) return log('auth-log','Email e password richieste');
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return log('auth-log', error.message);
-      $('whoami').textContent = 'Utente: ' + (data.session.user.email || data.session.user.id);
-      renderAuth(true);               // show app immediately
-      loadRole().then(()=>{           // then resolve role and refresh
-        $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
-        loadTavoli(); loadMine();
-      });
-      log('auth-log','Accesso effettuato');
-    }
-    async function signInAnon(){
-      const { data, error } = await supabase.auth.signInAnonymously();
-      if (error) return log('auth-log', error.message);
-      $('whoami').textContent = 'Utente: ' + data.user.id;
+    // Role and session
+    async function loadRole(){
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user){ IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
+      // ensure profile row exists, then read role
+      await supabase.from('profiles').upsert({ id: user.id }, { onConflict: 'id' }).select().maybeSingle();
+      const { data, error } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      const role = (!error && data?.role) ? data.role : 'user';
+      IS_ADMIN = role === 'admin';
+      $('role').textContent = 'Ruolo: ' + role;
       renderAuth(true);
-      loadRole().then(()=>{ $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN); loadTavoli(); loadMine(); });
-      log('auth-log','Accesso anonimo attivo');
-    }
-    async function signOut(){
-      await supabase.auth.signOut();
-      renderAuth(false);
-      resetUI();
-      log('auth-log','Uscito');
     }
 
-    // Bind
+    // Reset UI on logout
+    function resetUI(){
+      $('whoami').textContent = 'Utente: —';
+      log('tables-log',''); log('auth-log',''); log('create-log',''); log('edit-log','');
+      SELECTED_TAGS=[]; EDIT_TAGS=[]; renderTagsSummary(); renderTagsSummaryEdit();
+      IS_ADMIN=false;
+    }
+
+    // Bind UI
     function bind(){
       const map = new Map([
-        ['btn-signup',        signUp],
-        ['btn-signin',        signIn],
-        ['btn-anon',          signInAnon],
-        ['btn-signout',       signOut],
-        ['btn-create',        createTavolo],
-        ['btn-refresh',       async ()=>{ await loadTavoli(); await loadMine(); } ],
+        ['btn-login',         async ()=>{ await supabase.auth.signInWithOAuth({ provider:'google' }); }],
+        ['btn-logout',        async ()=>{ await supabase.auth.signOut(); }],
         ['btn-open-create',   ()=>{ $('create-dialog').showModal(); }],
         ['create-cancel',     ()=>{ $('create-dialog').close(); }],
+        ['btn-create',        createTavolo],
+        ['btn-refresh',       loadTavoli],
         ['btn-open-mine',     async ()=>{ await loadMine(); $('mine-dialog').showModal(); }],
         ['mine-close',        ()=>{ $('mine-dialog').close(); }],
         ['btn-tags',          ()=>{ TAGS_TARGET='create'; openTagsDialog(); }],
@@ -653,16 +574,12 @@
       const { data: { session } } = await supabase.auth.getSession();
       if (session){
         $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
-        renderAuth(true);
-        await loadRole();                 // resolve admin flag
+        $('auth-ok').textContent = 'on';
+        await loadRole();
         await Promise.all([loadTavoli(), loadMine()]);
-      } else {
-        renderAuth(false);
       }
-
-      // live auth changes
-      window.__sbAuthSub?.unsubscribe?.();
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
+      // Subscribe to auth changes
+      const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, s)=>{
         const authed = !!s;
         renderAuth(authed);               // do not block on role
         if (authed){
