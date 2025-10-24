@@ -90,7 +90,6 @@
           <input id="username" placeholder="handle (3–32)" />
           <div class="row" style="margin-top:10px">
             <button id="btn-save-profile" type="button" class="btn-accent">Salva profilo</button>
-            <button id="btn-ping" type="button">Ping REST</button>
             <!-- Shown only for SUPER_UID and when not admin yet -->
             <button id="btn-become-admin" type="button" class="btn-danger hidden">Diventa admin</button>
           </div>
@@ -561,9 +560,8 @@
         ['btn-anon',          signInAnon],
         ['btn-signout',       signOut],
         ['btn-save-profile',  saveProfile],
-        ['btn-ping',          async ()=>{ const r=await pingRest(); alert('Ping ' + JSON.stringify(r)); }],
         ['btn-create',        createTavolo],
-        ['btn-refresh',       async ()=>{ await pingRest(); await Promise.all([loadTavoli(), loadMine()]); }],
+        ['btn-refresh',       async ()=>{ await pingRest(); await Promise.all([loadTavoli(), loadMine()]); } ],
         ['btn-tags',          openTagsDialog],
         ['tags-apply',        applyTagsDialog],
         ['tags-cancel',       cancelTagsDialog],
