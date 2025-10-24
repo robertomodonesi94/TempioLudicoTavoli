@@ -297,40 +297,38 @@
       $('btn-open-create').classList.toggle('hidden', !isAuthed);
       $('btn-open-mine').classList.toggle('hidden', !isAuthed);
       setBadge('auth-ok', isAuthed);
-      // creation image availability by role
       $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
     }
+
     async function loadRole(){
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
-      // Ensure profile row exists, then read role
+      // ensure profile exists
       await supabase.from('profiles').upsert({ id: user.id }, { onConflict: 'id' }).select().maybeSingle().catch(()=>null);
       const { data, error } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
       const role = (!error && data?.role) ? data.role : 'user';
       IS_ADMIN = role === 'admin';
       $('role').textContent = 'Ruolo: ' + role;
+    }
+
+    // runs after role is known
+    async function bootAfterRole(){
       $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
+      await Promise.all([loadTavoli(), loadMine()]);
     }
 
-    let bootPromise = null;
-    function bootDataOnce(){
-      if (bootPromise) return bootPromise;
-      bootPromise = (async ()=>{
-        await loadRole();
-        renderTagsSummary();
-        await Promise.all([loadTavoli(), loadMine()]);
-      })().finally(()=>{ bootPromise = null; });
-      return bootPromise;
-    }
-
+    // auth change
     window.__sbAuthSub?.unsubscribe?.();
-    window.__sbAuthSub = supabase.auth.onAuthStateChange(async (event, session) => {
+    window.__sbAuthSub = supabase.auth.onAuthStateChange(async (_event, session) => {
       const authed = !!session;
-      renderAuth(authed);
       if (authed){
         $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
-        bootDataOnce().catch(console.error);
+        await loadRole();           // 1) get role
+        renderAuth(true);           // 2) render with correct role
+        await bootAfterRole();      // 3) load data using correct role snapshot
       } else {
+        IS_ADMIN=false;
+        renderAuth(false);
         resetUI();
       }
     }).data.subscription;
@@ -342,6 +340,7 @@
       log('tables-log',''); log('auth-log',''); log('create-log',''); log('edit-log','');
       SELECTED_TAGS=[]; EDIT_TAGS=[]; renderTagsSummary(); renderTagsSummaryEdit();
       IS_ADMIN=false;
+      $('image-create-wrap').classList.add('hidden');
     }
 
     // ---------- DATA ----------
@@ -549,6 +548,7 @@
     }
 
     // ---------- EDIT (ADMIN) ----------
+    const toInputLocal = (iso)=>{ if(!iso) return ''; const d=new Date(iso); const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
     function openEditDialog(t){
       if (!IS_ADMIN) return alert('Solo admin');
       $('edit_id').value = t.id;
@@ -557,12 +557,11 @@
       $('edit_max_seats').value = t.max_seats ?? '';
       $('edit_complexity_label').value = t.complexity_label || 'medio';
       $('edit_image_url').value = t.image_url || '';
-      $('edit_starts_at').value = toLocalInput(t.starts_at);
+      $('edit_starts_at').value = toInputLocal(t.starts_at);
       EDIT_TAGS = Array.isArray(t.tags) ? [...t.tags] : [];
       renderTagsSummaryEdit();
       $('edit-dialog').showModal();
     }
-
     async function saveEdit(){
       if (!IS_ADMIN) return log('edit-log','Non autorizzato');
       const id = $('edit_id').value;
@@ -611,16 +610,24 @@
       log('auth-log', error ? error.message : 'Signed in');
       if (!error){
         $('whoami').textContent = 'Utente: ' + (data.session.user.email || data.session.user.id);
-        bootDataOnce();
+        await loadRole();
+        renderAuth(true);
+        await bootAfterRole();
       }
     }
     async function signInAnon(){
       const { data, error } = await supabase.auth.signInAnonymously();
       log('auth-log', error ? error.message : 'Anon ok');
-      if (!error){ $('whoami').textContent = 'Utente: ' + data.user.id; bootDataOnce(); }
+      if (!error){
+        $('whoami').textContent = 'Utente: ' + data.user.id;
+        await loadRole();
+        renderAuth(true);
+        await bootAfterRole();
+      }
     }
     async function signOut(){
       await supabase.auth.signOut();
+      renderAuth(false);
       resetUI();
       log('auth-log','Signed out');
     }
@@ -633,7 +640,7 @@
         ['btn-anon',          signInAnon],
         ['btn-signout',       signOut],
         ['btn-create',        createTavolo],
-        ['btn-refresh',       async ()=>{ await Promise.all([loadTavoli(), loadMine()]); } ],
+        ['btn-refresh',       async ()=>{ await bootAfterRole(); } ],
         ['btn-open-create',   ()=>{ $('create-dialog').showModal(); }],
         ['create-cancel',     ()=>{ $('create-dialog').close(); }],
         ['btn-open-mine',     async ()=>{ await loadMine(); $('mine-dialog').showModal(); }],
@@ -662,9 +669,15 @@
 
     (async ()=>{
       bind();
-      const { data: { session } } = await supabase.auth.getSession();
-      renderAuth(!!session);
-      if (session){ $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id); bootDataOnce(); }
+      const { data: { session} } = await supabase.auth.getSession();
+      if (session){
+        $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
+        await loadRole();
+        renderAuth(true);
+        await bootAfterRole();
+      } else {
+        renderAuth(false);
+      }
     })();
   </script>
 </body>
