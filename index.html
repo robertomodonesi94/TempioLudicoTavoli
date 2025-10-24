@@ -41,25 +41,22 @@
     .dlg-body{padding:12px 16px;max-height:60vh;overflow:auto}
     .dlg-foot{padding:12px 16px;border-top:1px solid var(--b);display:flex;gap:8px;justify-content:flex-end}
     .checklist{display:flex;flex-wrap:wrap;gap:8px}
-    .checklist label{display:flex;align-items:center;gap:6px;border:1px solid var(--b2);padding:8px 10px;border-radius:12px;background:#fafafa}
-    .checklist input{width:16px;height:16px}
-    .tags-summary{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-    .tags-summary .tag{border:1px solid var(--b2);padding:4px 8px;border-radius:999px;background:#fff;font-size:12px;margin:0}
+    .checklist label{display:flex;align-items:center;gap:6px;border:1px solid var(--b2);padding:6px 10px;border-radius:999px;background:#fff;font-size:12px;margin:0}
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <h1>Tempio Ludico — Tavoli</h1>
-      <div class="badges">
-        <span class="badge">env: <span id="env-ok">—</span></span>
-        <span class="badge">sdk: <span id="sdk-ok">—</span></span>
-        <span class="badge">auth: <span id="auth-ok">—</span></span>
+      <div class="row" style="gap:6px;color:#fff">
+        <span class="badge">env:<span id="env-ok">…</span></span>
+        <span class="badge">sdk:<span id="sdk-ok">…</span></span>
+        <span class="badge">auth:<span id="auth-ok">…</span></span>
       </div>
     </header>
 
     <!-- AUTH -->
-    <section class="card">
+    <section id="auth" class="card">
       <h2>Accesso</h2>
       <div class="row">
         <div>
@@ -90,9 +87,10 @@
         <section class="card">
           <h2>Profilo</h2>
           <label>Username</label>
-          <input id="username" type="text" placeholder="handle (3–32)" />
+          <input id="username" placeholder="handle (3–32)" />
           <div class="row" style="margin-top:10px">
             <button id="btn-save-profile" type="button" class="btn-accent">Salva profilo</button>
+            <button id="btn-ping" type="button">Ping REST</button>
             <!-- Shown only for SUPER_UID and when not admin yet -->
             <button id="btn-become-admin" type="button" class="btn-danger hidden">Diventa admin</button>
           </div>
@@ -103,63 +101,67 @@
           <h2>Crea tavolo</h2>
 
           <label>Titolo</label>
-          <input id="title" type="text" placeholder="Nome del gioco" />
+          <input id="title" placeholder="Nome sessione" />
 
           <label>Descrizione</label>
-          <textarea id="description" placeholder="Dettagli, regolamento, durata, requisiti..."></textarea>
+          <textarea id="description" placeholder="Dettagli del tavolo, durata, prerequisiti, ecc."></textarea>
 
           <div class="cols-2">
             <div>
-              <label>Data e ora</label>
+              <label>Data e ora (future)</label>
               <input id="starts_at" type="datetime-local" />
             </div>
             <div>
               <label>Posti disponibili</label>
-              <input id="max_seats" type="number" min="1" max="20" />
+              <input id="max_seats" type="number" min="1" step="1" placeholder="es. 5" />
             </div>
           </div>
 
-          <div class="cols-2">
+          <div class="cols-2" style="margin-top:8px">
             <div>
               <label>Complessità</label>
               <select id="complexity_label">
-                <option value="molto semplice">Molto semplice</option>
-                <option value="semplice">Semplice</option>
-                <option value="medio" selected>Medio</option>
-                <option value="complesso">Complesso</option>
-                <option value="molto complesso">Molto complesso</option>
+                <option value="molto semplice">molto semplice</option>
+                <option value="semplice">semplice</option>
+                <option value="medio" selected>medio</option>
+                <option value="complesso">complesso</option>
+                <option value="molto complesso">molto complesso</option>
               </select>
             </div>
             <div>
-              <label>Immagine (URL)</label>
-              <input id="image_url" type="url" placeholder="https://..." />
+              <label>Immagine (opz.)</label>
+              <input id="image_url" placeholder="https://…" />
             </div>
           </div>
 
-          <label>Tag</label>
-          <div class="tags-summary">
-            <button id="btn-tags" type="button">Seleziona tag…</button>
-            <div id="tags-summary"></div>
+          <div style="margin-top:8px">
+            <label>Tag di gioco</label>
+            <div class="row" style="align-items:center">
+              <div id="tags-summary" class="tags" style="min-height:30px"></div>
+              <button id="btn-tags" type="button">Seleziona tag</button>
+            </div>
           </div>
 
-          <div class="row" style="margin-top:10px">
+          <div style="margin-top:10px">
             <button id="btn-create" type="button" class="btn-accent">Crea</button>
-            <button id="btn-refresh" type="button">Aggiorna</button>
           </div>
           <div id="create-log" class="muted" style="margin-top:8px"></div>
         </section>
-
-        <section class="card">
-          <h2>Tutti i tavoli</h2>
-          <div id="tables-log" class="muted" style="margin-bottom:6px"></div>
-          <div id="tables" class="list"></div>
-        </section>
-
-        <section class="card">
-          <h2>I miei tavoli</h2>
-          <div id="mine" class="list"></div>
-        </section>
       </div>
+
+      <section class="card" style="margin-top:14px">
+        <div class="row" style="align-items:center">
+          <h2 style="flex:1">Elenco tavoli</h2>
+          <button id="btn-refresh" type="button">Aggiorna</button>
+        </div>
+        <div id="tables" class="list"></div>
+        <div id="tables-log" class="muted"></div>
+      </section>
+
+      <section class="card" style="margin-top:14px">
+        <h2>Le mie prenotazioni</h2>
+        <div id="mine" class="list"></div>
+      </section>
     </div>
   </div>
 
@@ -191,79 +193,162 @@
     // supabase singleton
     const SB_OPTS = { auth: { storageKey: 'sb-tempioludico-web-v1', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
     window.__supabase ??= createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, SB_OPTS);
-    const supabase = window.__supabase;
+    window.supabase = window.__supabase;
 
-    // dom helpers
-    const $ = (id)=>document.getElementById(id);
-    const log = (id, text)=>{ const el=$(id); if (el) el.textContent = text || ''; };
-    const fmtDate = (iso)=> new Date(iso).toLocaleString('it-IT', { dateStyle:'short', timeStyle:'short' });
+    const $ = (id) => document.getElementById(id);
+    const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
+    const log = (id, msg) => { const el=$(id); if(el){ el.textContent=msg; } };
+    const escapeHtml = (s)=> s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-    // tags
-    const ALL_TAGS = [
-      'worker-placement','deck-building','engine-building','tableau-building','area-control','drafting','set-collection','tile-laying','push-your-luck','trick-taking','dexterity','action-selection','negotiation','auction','memory','roll-and-write','roll-and-move','cooperative','semi-cooperative','competitive','team-based','traitor','hidden-roles','social-deduction','take-that','low-interaction'
+    // Allowed tags
+    const AVAILABLE_TAGS = [
+      'worker-placement','deck-building','engine-building','tableau-building','area-control',
+      'drafting','set-collection','tile-laying','push-your-luck','trick-taking',
+      'dexterity','action-selection','negotiation','auction','memory',
+      'roll-and-write','roll-and-move',
+      'cooperative','semi-cooperative','competitive','team-based','traitor',
+      'hidden-roles','social-deduction','take-that','low-interaction'
     ];
-    let SELECTED_TAGS = [];
 
+    // ---------- TAG PICKER ----------
+    let SELECTED_TAGS = [];
     function renderTagsSummary(){
-      const box = $('tags-summary'); box.innerHTML='';
-      for (const t of SELECTED_TAGS){
-        const s = document.createElement('span'); s.className='tag'; s.textContent=t; box.appendChild(s);
+      const host = $('tags-summary'); host.innerHTML = '';
+      if (!SELECTED_TAGS.length){
+        const span = document.createElement('span');
+        span.className = 'muted';
+        span.textContent = 'Nessun tag selezionato';
+        host.appendChild(span);
+        return;
       }
-      if (!SELECTED_TAGS.length){ const s=document.createElement('span'); s.className='muted'; s.textContent='Nessun tag'; box.appendChild(s); }
+      for (const t of SELECTED_TAGS){
+        const chip = document.createElement('span');
+        chip.className = 'tag';
+        chip.textContent = t;
+        host.appendChild(chip);
+      }
+    }
+    function openTagsDialog(){
+      const list = $('tags-list'); list.innerHTML='';
+      for (const t of AVAILABLE_TAGS){
+        const id = 'tag_' + t.replace(/\W+/g,'_');
+        const label = document.createElement('label');
+        const checked = SELECTED_TAGS.includes(t) ? 'checked' : '';
+        label.innerHTML = `<input type="checkbox" id="${id}" value="${t}" ${checked}><span>${t}</span>`;
+        list.appendChild(label);
+      }
+      $('tags-dialog').showModal();
+    }
+    function applyTagsDialog(){
+      const list = $('tags-list');
+      SELECTED_TAGS = Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value);
+      $('tags-dialog').close();
+      renderTagsSummary();
+    }
+    function cancelTagsDialog(){ $('tags-dialog').close(); }
+
+    // ---------- AUTH + BOOT ----------
+    function renderAuth(isAuthed){
+      $('auth').classList.toggle('hidden', isAuthed);
+      $('app').classList.toggle('hidden', !isAuthed);
+      $('app').setAttribute('aria-hidden', String(!isAuthed));
+      setBadge('auth-ok', isAuthed);
+    }
+    function resetUI(){
+      $('whoami').textContent='Utente: —';
+      $('role').textContent='Ruolo: —';
+      $('tables').innerHTML=''; $('mine').innerHTML='';
+      log('tables-log',''); log('auth-log',''); log('profile-log',''); log('create-log','');
+      SELECTED_TAGS = []; renderTagsSummary();
+      $('btn-become-admin').classList.add('hidden');
+    }
+    async function pingRest(){
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return { ok:false, status:0 };
+      const res = await fetch(`${window.SUPABASE_URL}/rest/v1/profiles?select=id&limit=1`, {
+        headers: { apikey: window.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` }
+      });
+      return { ok: res.ok, status: res.status };
     }
 
+    let bootPromise = null;
+    function bootDataOnce(){
+      if (bootPromise) return bootPromise;
+      bootPromise = (async ()=>{
+        renderTagsSummary();
+        await loadProfile();
+        await Promise.all([loadTavoli(), loadMine()]);
+      })().finally(()=>{ bootPromise = null; });
+      return bootPromise;
+    }
+
+    window.__sbAuthSub?.unsubscribe?.();
+    window.__sbAuthSub = supabase.auth.onAuthStateChange(async (event, session) => {
+      const authed = !!session;
+      renderAuth(authed);
+      if (authed){
+        $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
+        bootDataOnce().catch(console.error);
+      } else {
+        resetUI();
+      }
+    }).data.subscription;
+
+    // ---------- PROFILE ----------
     async function loadProfile(){
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return log('profile-log','Login richiesto');
-      // ensure profile row
-      await supabase.from('profiles').upsert({ id: user.id }).select().single().catch(()=>null);
-      const { data, error } = await supabase.from('profiles').select('username,role').eq('id', user.id).single();
-      if (error) return log('profile-log', error.message);
-      $('username').value = data?.username || '';
+      if (!user) return;
+      const { data, error } = await supabase.from('profiles').select('username,role').eq('id', user.id).maybeSingle();
+      if (error) return;
+      $('username').value = data?.username ?? '';
       $('role').textContent = 'Ruolo: ' + (data?.role || 'user');
-      const showAdminBtn = user.id === SUPER_UID && (data?.role !== 'admin');
+      $('whoami').textContent = 'Utente: ' + (user.email || user.id);
+
+      // show "Diventa admin" only if you are the super user and not already admin
+      const showAdminBtn = (user.id === SUPER_UID) && ((data?.role || 'user') !== 'admin');
       $('btn-become-admin').classList.toggle('hidden', !showAdminBtn);
     }
     async function saveProfile(){
+      await pingRest();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return log('profile-log','Login richiesto');
-      const username = $('username').value.trim();
-      if (username && (username.length < 3 || username.length > 32)) return log('profile-log','Username 3–32 caratteri');
-      const { error } = await supabase.from('profiles').update({ username }).eq('id', user.id);
-      log('profile-log', error ? error.message : 'Profilo aggiornato');
+      if (!user) return log('profile-log','Login required');
+      const username = $('username').value.trim() || null;
+      const { error } = await supabase.from('profiles').upsert({ id: user.id, username }, { onConflict: 'id' });
+      log('profile-log', error ? error.message : 'Profile saved');
+      if (!error) await loadProfile();
     }
     async function becomeAdmin(){
+      // client-side gate too
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || user.id !== SUPER_UID) return alert('Non autorizzato');
       const { error } = await supabase.rpc('become_admin');
-      log('profile-log', error ? error.message : 'Ora sei admin');
+      if (error) return alert('Errore: ' + error.message);
       await loadProfile();
+      alert('Sei ora admin');
     }
 
-    function renderTableItem(t, counts, creators){
-      const reserved = counts.get(t.id) || 0;
-      const creator = creators.get(t.creator_id) || '—';
-      const tagSpans = (t.tags || []).map(x=>`<span class="tag">${x}</span>`).join(' ');
+    // ---------- DATA (abortable loads) ----------
+    let tavoliCtrl = null;
+    let mineCtrl = null;
+
+    function renderTableItem(t){
+      const tagChips = (t.tags || []).map(x=>`<span class="tag">${x}</span>`).join('');
       return `
-        <div class="item" data-id="${t.id}">
-          <div class="row">
-            <div style="flex:0 0 180px">
-              ${t.image_url ? `<img src="${t.image_url}" alt="" class="thumb" />` : `<div class="noimg">Nessuna immagine</div>`}
-            </div>
-            <div style="flex:1">
-              <h3 style="margin:0 0 6px 0">${t.title}</h3>
-              <div class="meta">
-                <span>${fmtDate(t.starts_at)}</span>
-                <span>Posti: ${reserved}/${t.max_seats}</span>
-                <span>Complessità: ${t.complexity_label}</span>
-                <span>Creato da: ${creator}</span>
-              </div>
-              <p class="muted" style="margin:8px 0 6px 0">${t.description}</p>
-              <div class="tags">${tagSpans}</div>
-              <div class="row" style="margin-top:10px">
-                <button data-act="reserve" type="button" class="btn-accent">Prenota</button>
-                <button data-act="unreserve" type="button" class="btn-danger">Annulla</button>
-              </div>
-            </div>
-          </div>
+        ${t.image_url ? `<img class="thumb" src="${t.image_url}" alt="${t.title}" />` : `<div class="noimg">No image</div>`}
+        <h3 style="margin:8px 0 6px 0">${t.title}</h3>
+        <div class="meta">
+          <span>Creato da: ${t.creator_username || t.creator_id || '—'}</span>
+          <span>Complessità: ${t.complexity_label || '—'}</span>
+          <span>Posti: ${t.max_seats ?? '—'}</span>
+          <span>Data: ${fmt(t.starts_at)}</span>
+          <span>Prenotazioni: ${t.reservations_count}</span>
+        </div>
+        <div class="muted" style="margin-top:6px">${t.description ? escapeHtml(t.description) : ''}</div>
+        <div class="tags">${tagChips}</div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn-accent" data-act="reserve" data-id="${t.id}" type="button">Prenota</button>
+          ${t.can_delete ? `<button class="btn-danger" data-act="delete" data-id="${t.id}" type="button">Elimina</button>` : ``}
         </div>
       `;
     }
@@ -294,73 +379,147 @@
       return m;
     }
     async function listTavoliWithExtras(signal){
-      const [list, counts] = await Promise.all([fetchTavoli(signal), fetchReservationCounts(signal)]);
-      const ids = [...new Set(list.map(x=>x.creator_id))].filter(Boolean);
-      const creators = await fetchCreatorsUsernames(ids);
-      return { list, counts, creators };
+      const [{ data: userObj }] = await Promise.all([supabase.auth.getUser()]);
+      const me = userObj?.user?.id || null;
+      const [rows, counts] = await Promise.all([fetchTavoli(signal), fetchReservationCounts(signal)]);
+      const seen = new Set();
+      const uniq = rows.filter(t => !seen.has(t.id) && seen.add(t.id));
+      const creatorIds = [...new Set(uniq.map(x=>x.creator_id).filter(Boolean))];
+      const nameMap = await fetchCreatorsUsernames(creatorIds);
+      return uniq.map(t => ({
+        ...t,
+        reservations_count: counts.get(t.id) || 0,
+        creator_username: nameMap.get(t.creator_id) || null,
+        can_delete: me && t.creator_id === me
+      }));
     }
-
     async function loadTavoli(){
-      const ctl = new AbortController();
+      tavoliCtrl?.abort();
+      tavoliCtrl = new AbortController();
+      const host = $('tables'); host.innerHTML='';
       try{
-        log('tables-log','Caricamento…');
-        const { list, counts, creators } = await listTavoliWithExtras(ctl.signal);
-        const html = list.map(t=>renderTableItem(t, counts, creators)).join('');
-        $('tables').innerHTML = html;
-        bindTableButtons('tables');
-        log('tables-log','');
-      }catch(e){ log('tables-log', e.message || String(e)); }
-      return ()=>ctl.abort();
-    }
+        const items = await listTavoliWithExtras(tavoliCtrl.signal);
+        const frag = document.createDocumentFragment();
+        for (const t of items){
+          const el = document.createElement('div');
+          el.className='item';
+          el.innerHTML = renderTableItem(t);
 
-    async function loadMine(){
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const ctl = new AbortController();
-      try{
-        const { data, error } = await supabase.from('tavoli').select('*').eq('creator_id', user.id).order('created_at',{ascending:false}).limit(100).abortSignal?.(ctl.signal);
-        if (error) throw error;
-        const counts = await fetchReservationCounts(ctl.signal);
-        const creators = await fetchCreatorsUsernames([user.id]);
-        const html = (data || []).map(t=>renderTableItem(t, counts, creators)).join('');
-        $('mine').innerHTML = html;
-        bindTableButtons('mine');
+          el.querySelector('[data-act="reserve"]').addEventListener('click', async (ev)=>{
+            ev.preventDefault();
+            await pingRest();
+            const { error } = await supabase.from('reservations').insert({ tavolo_id: t.id });
+            if (error) alert('Errore: ' + error.message);
+            await loadTavoli(); await loadMine();
+          });
+
+          const delBtn = el.querySelector('[data-act="delete"]');
+          if (delBtn){
+            delBtn.addEventListener('click', async (ev)=>{
+              ev.preventDefault();
+              if (!confirm('Eliminare questo tavolo?')) return;
+              const { error } = await supabase.from('tavoli').delete().eq('id', t.id);
+              if (error) return alert('Errore eliminazione: ' + error.message);
+              await loadTavoli(); await loadMine();
+            });
+          }
+          frag.appendChild(el);
+        }
+        host.appendChild(frag);
+        if (!items.length) host.innerHTML = '<div class="muted">Nessun tavolo</div>';
+        $('tables-log').textContent = `${items.length} tavoli`;
       }catch(e){
-        $('mine').innerHTML='';
+        if (e?.name === 'AbortError') return;
+        $('tables-log').textContent = e.message || String(e);
       }
-      return ()=>ctl.abort();
     }
 
-    function bindTableButtons(containerId){
-      document.querySelectorAll(`#${containerId} .item`).forEach(el=>{
-        const t = { id: el.dataset.id };
-        el.querySelector('[data-act="reserve"]').addEventListener('click', async (ev)=>{
-          ev.preventDefault();
-          const { error } = await supabase.from('reservations').insert({ tavolo_id: t.id });
-          if (error) alert(error.message);
-          else await Promise.all([loadTavoli(), loadMine()]);
-        });
-        el.querySelector('[data-act="unreserve"]').addEventListener('click', async (ev)=>{
-          ev.preventDefault();
-          const { data, error } = await supabase.from('reservations').select('id').eq('tavolo_id', t.id).limit(1).single();
-          if (error) return alert(error.message);
-          const { error: err2 } = await supabase.from('reservations').delete().eq('id', data.id);
-          if (err2) alert(err2.message);
-          else await Promise.all([loadTavoli(), loadMine()]);
-        });
-      });
+    async function deleteReservation(id){
+      await pingRest();
+      const { error } = await supabase.from('reservations').delete().eq('id', id);
+      if (error) throw error;
+    }
+    async function loadMine(){
+      mineCtrl?.abort();
+      mineCtrl = new AbortController();
+      const host=$('mine'); host.innerHTML='';
+      try{
+        const { data, error } = await supabase
+          .from('reservations')
+          .select('id,tavolo_id,created_at')
+          .order('created_at',{ascending:false})
+          .abortSignal?.(mineCtrl.signal);
+        if (error) throw error;
+        if (!data?.length){ host.innerHTML = '<div class="muted">Nessuna prenotazione</div>'; return; }
+
+        const ids=[...new Set(data.map(r=>r.tavolo_id))];
+        const t = await supabase.from('tavoli').select('id,title').in('id', ids);
+
+        const frag = document.createDocumentFragment();
+        for (const r of data){
+          const tt = t.data?.find(x=>x.id===r.tavolo_id);
+          const el = document.createElement('div');
+          el.className='item';
+          el.innerHTML = `
+            <h3 style="margin:0 0 6px 0">${tt?tt.title:r.tavolo_id}</h3>
+            <div class="meta"><span>Prenotato: ${fmt(r.created_at)}</span></div>
+            <div class="row" style="margin-top:8px">
+              <button class="btn-danger" data-act="cancel" data-id="${r.id}" type="button">Cancella</button>
+            </div>`;
+          el.querySelector('[data-act="cancel"]').addEventListener('click', async (ev)=>{
+            ev.preventDefault();
+            const { error: delErr } = await supabase.from('reservations').delete().eq('id', r.id);
+            if (delErr) return alert('Errore cancellazione: ' + delErr.message);
+            await loadMine();
+          });
+          frag.appendChild(el);
+        }
+        host.appendChild(frag);
+      }catch(e){
+        if (e?.name === 'AbortError') return;
+        host.innerHTML='';
+      }
     }
 
-    function parseFutureLocalDateTime(input){
-      if (!input) return { ok:false, error:'Data/ora obbligatoria' };
-      const d = new Date(input);
-      if (Number.isNaN(+d)) return { ok:false, error:'Data/ora non valida' };
-      if (d <= new Date()) return { ok:false, error:'Seleziona una data nel futuro' };
+    // ---------- AUTH actions ----------
+    async function signUp(){
+      log('auth-log','');
+      const email=$('email').value.trim(), password=$('password').value;
+      if (!email || !password) return log('auth-log','Email and password required');
+      const { error } = await supabase.auth.signUp({ email, password, options:{ emailRedirectTo: location.origin + '/' } });
+      log('auth-log', error ? error.message : 'Registered. Check email to confirm.');
+    }
+    async function signIn(){
+      log('auth-log','');
+      const email=$('email').value.trim(), password=$('password').value;
+      if (!email || !password) return log('auth-log','Email and password required');
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      log('auth-log', error ? error.message : 'Signed in');
+      if (!error){ $('whoami').textContent = 'Utente: ' + (data.session.user.email || data.session.user.id); bootDataOnce(); }
+    }
+    async function signInAnon(){
+      const { data, error } = await supabase.auth.signInAnonymously();
+      log('auth-log', error ? error.message : 'Anon ok');
+      if (!error){ $('whoami').textContent = 'Utente: ' + data.user.id; bootDataOnce(); }
+    }
+    async function signOut(){
+      await supabase.auth.signOut();
+      resetUI();
+      log('auth-log','Signed out');
+    }
+
+    // ---------- Create table ----------
+    function parseFutureLocalDateTime(v){
+      if (!v) return { ok:false, error:'Data e ora obbligatorie' };
+      const d = new Date(v);
+      if (Number.isNaN(+d)) return { ok:false, error:'Formato data/ora non valido' };
+      if (d.getTime() <= Date.now()+60*1000) return { ok:false, error:'La data deve essere nel futuro' };
       return { ok:true, value:d.toISOString() };
     }
     async function createTavolo(){
+      await pingRest();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return log('create-log','Login richiesto');
+      if (!user) return log('create-log','Login required');
 
       const title = $('title').value.trim();
       const description = $('description').value.trim();
@@ -396,120 +555,31 @@
 
     // ---------- Bind + initial ----------
     function bind(){
-      const map = [
+      const map = new Map([
         ['btn-signup',        signUp],
         ['btn-signin',        signIn],
         ['btn-anon',          signInAnon],
         ['btn-signout',       signOut],
         ['btn-save-profile',  saveProfile],
+        ['btn-ping',          async ()=>{ const r=await pingRest(); alert('Ping ' + JSON.stringify(r)); }],
         ['btn-create',        createTavolo],
-        ['btn-refresh',       async ()=>{ await Promise.all([loadTavoli(), loadMine()]); }],
+        ['btn-refresh',       async ()=>{ await pingRest(); await Promise.all([loadTavoli(), loadMine()]); }],
         ['btn-tags',          openTagsDialog],
         ['tags-apply',        applyTagsDialog],
-        ['tags-cancel',       closeTagsDialog],
+        ['tags-cancel',       cancelTagsDialog],
         ['btn-become-admin',  becomeAdmin],
-      ];
+      ]);
       for (const [id,fn] of map){
-        const el=$(id); if (el) el.addEventListener('click', (ev)=>{ ev.preventDefault(); fn?.(); });
+        const el=$(id); if (!el) continue;
+        el.onclick = null;
+        el.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fn(); }catch(err){ console.error(id, err); } });
       }
-      document.addEventListener('keydown', (e)=>{
-        if (e.key==='Escape'){ const dlg=$('tags-dialog'); dlg?.open && dlg.close(); }
-      });
-      buildTagsList();
-    }
-
-    async function signUp(){
-      const email=$('email').value.trim(), password=$('password').value.trim();
-      const { error } = await supabase.auth.signUp({ email, password });
-      log('auth-log', error ? error.message : 'Controlla l’email per confermare');
-    }
-    async function signIn(){
-      const email=$('email').value.trim(), password=$('password').value.trim();
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      log('auth-log', error ? error.message : 'Accesso effettuato');
-    }
-    async function signInAnon(){
-      const { error } = await supabase.auth.signInAnonymously();
-      log('auth-log', error ? error.message : 'Accesso anonimo attivo');
-    }
-    async function signOut(){
-      const { error } = await supabase.auth.signOut();
-      if (error) return log('auth-log', error.message);
-      resetUI();
-      renderAuth(false);
-    }
-
-    function renderAuth(ok){
-      setBadge('auth-ok', ok);
-      $('app').classList.toggle('hidden', !ok);
-      $('app').setAttribute('aria-hidden', String(!ok));
-    }
-    function resetUI(){
-      $('whoami').textContent='Utente: —';
-      $('role').textContent='Ruolo: —';
-      $('tables').innerHTML=''; $('mine').innerHTML='';
-      log('tables-log',''); log('auth-log',''); log('profile-log',''); log('create-log','');
-      SELECTED_TAGS = []; renderTagsSummary();
-      $('btn-become-admin').classList.add('hidden');
-    }
-
-    let bootPromise = null;
-    function bootDataOnce(){
-      if (bootPromise) return bootPromise;
-      bootPromise = (async ()=>{
-        renderTagsSummary();
-        await loadProfile();
-        await Promise.all([loadTavoli(), loadMine()]);
-      })().finally(()=>{ bootPromise = null; });
-      return bootPromise;
-    }
-
-    window.__sbAuthSub?.unsubscribe?.();
-    window.__sbAuthSub = supabase.auth.onAuthStateChange(async (event, session) => {
-      renderAuth(!!session);
-      if (session){
-        $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
-        await bootDataOnce();
-      }else{
-        resetUI();
-      }
-    });
-
-    function buildTagsList(){
-      const box=$('tags-list'); box.innerHTML='';
-      for (const t of ALL_TAGS){
-        const id='tag-'+t;
-        const label=document.createElement('label');
-        label.innerHTML=`<input type="checkbox" id="${id}" value="${t}"><span>${t}</span>`;
-        box.appendChild(label);
-      }
-    }
-    function openTagsDialog(){
-      const dlg=$('tags-dialog'); dlg.showModal();
-      // sync checks
-      for (const t of ALL_TAGS){
-        const el=document.getElementById('tag-'+t);
-        if (el) el.checked = SELECTED_TAGS.includes(t);
-      }
-      // click outside to close
-      dlg.addEventListener('click', function onClick(e){
+      $('tags-dialog').addEventListener('click', (e)=>{
+        const dlg = $('tags-dialog');
         const rect = dlg.getBoundingClientRect();
         const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
         if (!inside) dlg.close();
       });
-    }
-    function applyTagsDialog(){
-      const next=[];
-      for (const t of ALL_TAGS){
-        const el=document.getElementById('tag-'+t);
-        if (el?.checked) next.push(t);
-      }
-      SELECTED_TAGS = next;
-      renderTagsSummary();
-      closeTagsDialog();
-    }
-    function closeTagsDialog(){
-      const dlg=$('tags-dialog'); dlg.close();
     }
 
     (async ()=>{
