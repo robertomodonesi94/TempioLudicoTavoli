@@ -87,6 +87,41 @@
     </div>
   </div>
 
+  <!-- LOGIN DIALOG | EMAIL + PASSWORD -->
+  <dialog id="login-dialog">
+    <div class="dlg-head">Accedi</div>
+    <div class="dlg-body">
+      <label>Email</label>
+      <input id="login-email" type="email" autocomplete="username" placeholder="nome@dominio.it" />
+      <label>Password</label>
+      <input id="login-password" type="password" autocomplete="current-password" />
+      <div class="row" style="align-items:center;margin-top:8px">
+        <button id="btn-do-login" type="button" class="btn-accent">Accedi</button>
+        <button id="btn-open-signup" type="button">Registrati</button>
+        <div id="login-msg" class="muted" style="margin-left:auto"></div>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button id="login-cancel" type="button">Chiudi</button>
+    </div>
+  </dialog>
+
+  <!-- SIGNUP DIALOG -->
+  <dialog id="signup-dialog">
+    <div class="dlg-head">Crea account</div>
+    <div class="dlg-body">
+      <label>Email</label>
+      <input id="signup-email" type="email" autocomplete="username" placeholder="nome@dominio.it" />
+      <label>Password</label>
+      <input id="signup-password" type="password" autocomplete="new-password" />
+      <div id="signup-msg" class="muted" style="margin-top:8px"></div>
+    </div>
+    <div class="dlg-foot">
+      <button id="signup-cancel" type="button">Annulla</button>
+      <button id="btn-do-signup" type="button" class="btn-accent">Registrati</button>
+    </div>
+  </dialog>
+
   <!-- CREATE TABLE DIALOG -->
   <dialog id="create-dialog">
     <div class="dlg-head">Crea tavolo</div>
@@ -287,17 +322,17 @@
 
     // Data
     async function fetchTavoli(signal){
-      const { data, error } = await supabase
+      const q = supabase
         .from('tavoli')
         .select('id,title,description,starts_at,max_seats,complexity_label,image_url,created_at,creator_id,tags')
         .order('created_at',{ascending:false})
-        .limit(200)
-        .abortSignal?.(signal);
+        .limit(200);
+      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     }
-    async function fetchReservationCounts(signal){
-      const { data, error } = await supabase.from('reservations').select('tavolo_id').abortSignal?.(signal);
+    async function fetchReservationCounts(){
+      const { data, error } = await supabase.from('reservations').select('tavolo_id');
       if (error) throw error;
       const m = new Map();
       for (const r of (data || [])) m.set(r.tavolo_id, (m.get(r.tavolo_id) || 0) + 1);
@@ -311,10 +346,10 @@
       for (const r of data || []) m.set(r.id, r.username || null);
       return m;
     }
-    async function listTavoliWithExtras(signal){
-      const [{ data: userObj }] = await Promise.all([supabase.auth.getUser()]);
+    async function listTavoliWithExtras(){
+      const { data: userObj } = await supabase.auth.getUser();
       const me = userObj?.user?.id || null;
-      const [rows, counts] = await Promise.all([fetchTavoli(signal), fetchReservationCounts(signal)]);
+      const [rows, counts] = await Promise.all([fetchTavoli(), fetchReservationCounts()]);
       const creatorIds = [...new Set(rows.map(r=>r.creator_id).filter(Boolean))];
       const usernames = await fetchCreatorsUsernames(creatorIds);
       for (const r of rows){
@@ -378,14 +413,11 @@
     }
 
     // Load tables
-    let listCtrl = null;
     async function loadTavoli(){
-      if (listCtrl) listCtrl.abort();
-      listCtrl = new AbortController();
       log('tables-log','Caricamento…');
       const host = $('tables'); host.innerHTML='';
       try{
-        const { rows, usernames } = await listTavoliWithExtras(listCtrl.signal);
+        const { rows, usernames } = await listTavoliWithExtras();
         if (!rows.length){ host.innerHTML = '<div class="muted">Nessun tavolo</div>'; }
         else {
           const frag = document.createDocumentFragment();
@@ -399,17 +431,13 @@
     }
 
     // My reservations
-    let mineCtrl = null;
     async function loadMine(){
-      if (mineCtrl) mineCtrl.abort();
-      mineCtrl = new AbortController();
       const host = $('mine'); host.innerHTML='';
       try{
         const { data, error } = await supabase
           .from('reservations')
           .select('id,tavolo_id,created_at')
-          .order('created_at',{ascending:false})
-          .abortSignal?.(mineCtrl.signal);
+          .order('created_at',{ascending:false});
         if (error) throw error;
         if (!data?.length){ host.innerHTML = '<div class="muted">Nessuna prenotazione</div>'; return; }
 
@@ -518,7 +546,6 @@
     async function loadRole(){
       const { data: { user } } = await supabase.auth.getUser();
       if (!user){ IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
-      // ensure profile row exists, then read role
       await supabase.from('profiles').upsert({ id: user.id }, { onConflict: 'id' }).select().maybeSingle();
       const { data, error } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
       const role = (!error && data?.role) ? data.role : 'user';
@@ -527,18 +554,51 @@
       renderAuth(true);
     }
 
+    // Email/password auth
+    async function doPasswordLogin(){
+      const email = $('login-email').value.trim();
+      const password = $('login-password').value;
+      log('login-msg','');
+      if (!email || !password){ log('login-msg','Email e password sono obbligatorie'); return; }
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error){ log('login-msg', error.message); return; }
+      $('login-dialog').close();
+      $('whoami').textContent = 'Utente: ' + (data.user?.email || data.user?.id || '');
+      await loadRole();
+      await Promise.all([loadTavoli(), loadMine()]);
+    }
+    async function doPasswordSignup(){
+      const email = $('signup-email').value.trim();
+      const password = $('signup-password').value;
+      log('signup-msg','');
+      if (!email || !password){ log('signup-msg','Email e password sono obbligatorie'); return; }
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error){ log('signup-msg', error.message); return; }
+      if (!data.user){ log('signup-msg','Registrazione eseguita. Controlla l’email per la conferma.'); return; }
+      $('signup-dialog').close();
+      $('whoami').textContent = 'Utente: ' + (data.user.email || data.user.id);
+      await loadRole();
+      await Promise.all([loadTavoli(), loadMine()]);
+    }
+
     // Reset UI on logout
     function resetUI(){
       $('whoami').textContent = 'Utente: —';
-      log('tables-log',''); log('auth-log',''); log('create-log',''); log('edit-log','');
+      log('tables-log',''); log('auth-log',''); log('create-log',''); log('edit-log',''); log('login-msg',''); log('signup-msg','');
       SELECTED_TAGS=[]; EDIT_TAGS=[]; renderTagsSummary(); renderTagsSummaryEdit();
       IS_ADMIN=false;
+      renderAuth(false);
     }
 
     // Bind UI
     function bind(){
       const map = new Map([
-        ['btn-login',         async ()=>{ await supabase.auth.signInWithOAuth({ provider:'google' }); }],
+        ['btn-login',         ()=>{ $('login-dialog').showModal(); }],
+        ['login-cancel',      ()=>{ $('login-dialog').close(); }],
+        ['btn-do-login',      doPasswordLogin],
+        ['btn-open-signup',   ()=>{ $('login-dialog').close(); $('signup-dialog').showModal(); }],
+        ['signup-cancel',     ()=>{ $('signup-dialog').close(); }],
+        ['btn-do-signup',     doPasswordSignup],
         ['btn-logout',        async ()=>{ await supabase.auth.signOut(); }],
         ['btn-open-create',   ()=>{ $('create-dialog').showModal(); }],
         ['create-cancel',     ()=>{ $('create-dialog').close(); }],
@@ -558,7 +618,8 @@
         el.onclick = null;
         el.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fn(); }catch(err){ console.error(id, err); } });
       }
-      for (const dlgId of ['create-dialog','mine-dialog','tags-dialog','edit-dialog']){
+      // close dialogs when clicking outside
+      for (const dlgId of ['create-dialog','mine-dialog','tags-dialog','edit-dialog','login-dialog','signup-dialog']){
         const dlg = $(dlgId);
         dlg?.addEventListener('click', function onClick(e){
           const rect = dlg.getBoundingClientRect();
@@ -566,22 +627,31 @@
           if (!inside) dlg.close();
         });
       }
+      // Enter to submit on login
+      $('login-password')?.addEventListener('keydown', (e)=>{ if (e.key==='Enter') doPasswordLogin(); });
+      $('signup-password')?.addEventListener('keydown', (e)=>{ if (e.key==='Enter') doPasswordSignup(); });
     }
 
-    // Bootstrap: detect existing session and show app immediately if present
+    // Bootstrap: detect session
     (async ()=>{
       bind();
+      $('env-ok').textContent = (typeof SUPABASE_URL==='string' && typeof SUPABASE_ANON_KEY==='string') ? 'ok' : 'err';
+      $('sdk-ok').textContent = window.supabase ? 'ok' : 'err';
+
       const { data: { session } } = await supabase.auth.getSession();
       if (session){
         $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
         $('auth-ok').textContent = 'on';
         await loadRole();
         await Promise.all([loadTavoli(), loadMine()]);
+      } else {
+        renderAuth(false);
       }
+
       // Subscribe to auth changes
       const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, s)=>{
         const authed = !!s;
-        renderAuth(authed);               // do not block on role
+        renderAuth(authed);
         if (authed){
           $('whoami').textContent = 'Utente: ' + (s.user.email || s.user.id);
           await loadRole();
