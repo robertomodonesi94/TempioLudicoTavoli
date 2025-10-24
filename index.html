@@ -224,21 +224,28 @@
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+    // Badges
     const setBadge = (id, ok) => { const el=document.getElementById(id); if (el) el.textContent = ok ? 'OK' : 'err'; };
     setBadge('env-ok', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
     setBadge('sdk-ok', true);
 
-    const SB_OPTS = { auth: { storageKey: 'sb-tempioludico-web-v1', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
+    // Supabase client — use default storage key so existing sessions are detected
+    const SB_OPTS = { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
     window.__supabase ??= createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, SB_OPTS);
     const supabase = window.__supabase;
 
+    // DOM helpers
     const $ = (id) => document.getElementById(id);
     const fmt = (d) => d ? new Date(d).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}) : '—';
     const log = (id, msg) => { const el=$(id); if(el){ el.textContent=msg||''; } };
     const escapeHtml = (s)=> (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    const toLocalInput = (iso)=>{ if(!iso) return ''; const d=new Date(iso); const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+    const toInputLocal = (iso)=>{ if(!iso) return ''; const d=new Date(iso); const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 
+    // State
     let IS_ADMIN = false;
+    let SELECTED_TAGS = [];
+    let EDIT_TAGS = [];
+    let TAGS_TARGET = 'create'; // 'create' | 'edit'
 
     const AVAILABLE_TAGS = [
       'worker-placement','deck-building','engine-building','tableau-building','area-control',
@@ -249,11 +256,27 @@
       'hidden-roles','social-deduction','take-that','low-interaction'
     ];
 
-    // ---------- TAG PICKER ----------
-    let SELECTED_TAGS = [];
-    let EDIT_TAGS = [];
-    let TAGS_TARGET = 'create'; // 'create' | 'edit'
+    // UI state
+    function renderAuth(isAuthed){
+      $('auth').classList.toggle('hidden', isAuthed);
+      $('app').classList.toggle('hidden', !isAuthed);
+      $('app').setAttribute('aria-hidden', String(!isAuthed));
+      $('btn-open-create').classList.toggle('hidden', !isAuthed);
+      $('btn-open-mine').classList.toggle('hidden', !isAuthed);
+      setBadge('auth-ok', isAuthed);
+      $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
+    }
+    function resetUI(){
+      $('whoami').textContent='Utente: —';
+      $('role').textContent='Ruolo: —';
+      $('tables').innerHTML=''; $('mine').innerHTML='';
+      log('tables-log',''); log('auth-log',''); log('create-log',''); log('edit-log','');
+      SELECTED_TAGS=[]; EDIT_TAGS=[]; renderTagsSummary(); renderTagsSummaryEdit();
+      IS_ADMIN=false;
+      $('image-create-wrap').classList.add('hidden');
+    }
 
+    // Tags UI
     function renderTagsSummary(){
       const host = $('tags-summary'); if (!host) return;
       host.innerHTML = '';
@@ -289,61 +312,20 @@
     }
     function cancelTagsDialog(){ $('tags-dialog').close(); }
 
-    // ---------- AUTH + ROLE ----------
-    function renderAuth(isAuthed){
-      $('auth').classList.toggle('hidden', isAuthed);
-      $('app').classList.toggle('hidden', !isAuthed);
-      $('app').setAttribute('aria-hidden', String(!isAuthed));
-      $('btn-open-create').classList.toggle('hidden', !isAuthed);
-      $('btn-open-mine').classList.toggle('hidden', !isAuthed);
-      setBadge('auth-ok', isAuthed);
-      $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
-    }
-
+    // Role
     async function loadRole(){
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
-      // ensure profile exists
+      if (!user){ IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
+      // Ensure profile row exists, then read role
       await supabase.from('profiles').upsert({ id: user.id }, { onConflict: 'id' }).select().maybeSingle().catch(()=>null);
       const { data, error } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
       const role = (!error && data?.role) ? data.role : 'user';
       IS_ADMIN = role === 'admin';
       $('role').textContent = 'Ruolo: ' + role;
-    }
-
-    // runs after role is known
-    async function bootAfterRole(){
       $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
-      await Promise.all([loadTavoli(), loadMine()]);
     }
 
-    // auth change
-    window.__sbAuthSub?.unsubscribe?.();
-    window.__sbAuthSub = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const authed = !!session;
-      if (authed){
-        $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
-        await loadRole();           // 1) get role
-        renderAuth(true);           // 2) render with correct role
-        await bootAfterRole();      // 3) load data using correct role snapshot
-      } else {
-        IS_ADMIN=false;
-        renderAuth(false);
-        resetUI();
-      }
-    }).data.subscription;
-
-    function resetUI(){
-      $('whoami').textContent='Utente: —';
-      $('role').textContent='Ruolo: —';
-      $('tables').innerHTML=''; $('mine').innerHTML='';
-      log('tables-log',''); log('auth-log',''); log('create-log',''); log('edit-log','');
-      SELECTED_TAGS=[]; EDIT_TAGS=[]; renderTagsSummary(); renderTagsSummaryEdit();
-      IS_ADMIN=false;
-      $('image-create-wrap').classList.add('hidden');
-    }
-
-    // ---------- DATA ----------
+    // Data
     function renderTableItem(t){
       const tagChips = (t.tags || []).map(x=>`<span class="tag">${x}</span>`).join('');
       const adminBtns = IS_ADMIN ? `<button class="btn-accent" data-act="edit" data-id="${t.id}" type="button">Modifica</button>` : '';
@@ -458,7 +440,7 @@
       }
     }
 
-    // ---------- MY RESERVATIONS ----------
+    // My reservations
     let mineCtrl = null;
     async function loadMine(){
       mineCtrl?.abort();
@@ -503,7 +485,7 @@
       }
     }
 
-    // ---------- CREATE ----------
+    // Create
     function parseFutureLocalDateTime(v){
       if (!v) return { ok:false, error:'Data e ora obbligatorie' };
       const d = new Date(v);
@@ -520,7 +502,7 @@
       const starts_input = $('starts_at').value;
       const seats = Number($('max_seats').value);
       const complexity_label = $('complexity_label').value;
-      const image_url = IS_ADMIN ? $('image_url').value.trim() : ''; // ignore if not admin
+      const image_url = IS_ADMIN ? $('image_url').value.trim() : '';
       const tags = SELECTED_TAGS.slice();
 
       if (!title) return log('create-log','Titolo obbligatorio');
@@ -547,8 +529,7 @@
       }
     }
 
-    // ---------- EDIT (ADMIN) ----------
-    const toInputLocal = (iso)=>{ if(!iso) return ''; const d=new Date(iso); const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+    // Edit (admin)
     function openEditDialog(t){
       if (!IS_ADMIN) return alert('Solo admin');
       $('edit_id').value = t.id;
@@ -594,45 +575,44 @@
       }
     }
 
-    // ---------- AUTH actions ----------
+    // Auth actions
     async function signUp(){
       log('auth-log','');
       const email=$('email').value.trim(), password=$('password').value;
-      if (!email || !password) return log('auth-log','Email and password required');
+      if (!email || !password) return log('auth-log','Email e password richieste');
       const { error } = await supabase.auth.signUp({ email, password, options:{ emailRedirectTo: location.origin + '/' } });
-      log('auth-log', error ? error.message : 'Registered. Check email to confirm.');
+      log('auth-log', error ? error.message : 'Registrato. Controlla la mail.');
     }
     async function signIn(){
       log('auth-log','');
       const email=$('email').value.trim(), password=$('password').value;
-      if (!email || !password) return log('auth-log','Email and password required');
+      if (!email || !password) return log('auth-log','Email e password richieste');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      log('auth-log', error ? error.message : 'Signed in');
-      if (!error){
-        $('whoami').textContent = 'Utente: ' + (data.session.user.email || data.session.user.id);
-        await loadRole();
-        renderAuth(true);
-        await bootAfterRole();
-      }
+      if (error) return log('auth-log', error.message);
+      $('whoami').textContent = 'Utente: ' + (data.session.user.email || data.session.user.id);
+      renderAuth(true);               // show app immediately
+      loadRole().then(()=>{           // then resolve role and refresh
+        $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
+        loadTavoli(); loadMine();
+      });
+      log('auth-log','Accesso effettuato');
     }
     async function signInAnon(){
       const { data, error } = await supabase.auth.signInAnonymously();
-      log('auth-log', error ? error.message : 'Anon ok');
-      if (!error){
-        $('whoami').textContent = 'Utente: ' + data.user.id;
-        await loadRole();
-        renderAuth(true);
-        await bootAfterRole();
-      }
+      if (error) return log('auth-log', error.message);
+      $('whoami').textContent = 'Utente: ' + data.user.id;
+      renderAuth(true);
+      loadRole().then(()=>{ $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN); loadTavoli(); loadMine(); });
+      log('auth-log','Accesso anonimo attivo');
     }
     async function signOut(){
       await supabase.auth.signOut();
       renderAuth(false);
       resetUI();
-      log('auth-log','Signed out');
+      log('auth-log','Uscito');
     }
 
-    // ---------- Bind + initial ----------
+    // Bind
     function bind(){
       const map = new Map([
         ['btn-signup',        signUp],
@@ -640,7 +620,7 @@
         ['btn-anon',          signInAnon],
         ['btn-signout',       signOut],
         ['btn-create',        createTavolo],
-        ['btn-refresh',       async ()=>{ await bootAfterRole(); } ],
+        ['btn-refresh',       async ()=>{ await loadTavoli(); await loadMine(); } ],
         ['btn-open-create',   ()=>{ $('create-dialog').showModal(); }],
         ['create-cancel',     ()=>{ $('create-dialog').close(); }],
         ['btn-open-mine',     async ()=>{ await loadMine(); $('mine-dialog').showModal(); }],
@@ -667,17 +647,33 @@
       }
     }
 
+    // Bootstrap: detect existing session and show app immediately if present
     (async ()=>{
       bind();
-      const { data: { session} } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       if (session){
         $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
-        await loadRole();
         renderAuth(true);
-        await bootAfterRole();
+        await loadRole();                 // resolve admin flag
+        await Promise.all([loadTavoli(), loadMine()]);
       } else {
         renderAuth(false);
       }
+
+      // live auth changes
+      window.__sbAuthSub?.unsubscribe?.();
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
+        const authed = !!s;
+        renderAuth(authed);               // do not block on role
+        if (authed){
+          $('whoami').textContent = 'Utente: ' + (s.user.email || s.user.id);
+          await loadRole();
+          await Promise.all([loadTavoli(), loadMine()]);
+        } else {
+          resetUI();
+        }
+      });
+      window.__sbAuthSub = subscription;
     })();
   </script>
 </body>
