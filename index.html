@@ -36,6 +36,11 @@
     .hidden{display:none}
     .cols-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     @media (max-width:700px){.cols-2{grid-template-columns:1fr}}
+    /* modal */
+    dialog{border:none;border-radius:12px;max-width:640px;width:90vw;padding:0;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .dlg-head{padding:14px 16px;border-bottom:1px solid var(--b);font-weight:700}
+    .dlg-body{padding:12px 16px;max-height:60vh;overflow:auto}
+    .dlg-foot{padding:12px 16px;border-top:1px solid var(--b);display:flex;gap:8px;justify-content:flex-end}
     .checklist{display:flex;flex-wrap:wrap;gap:8px}
     .checklist label{display:flex;align-items:center;gap:6px;border:1px solid var(--b2);padding:6px 10px;border-radius:999px;background:#fff;font-size:12px;margin:0}
   </style>
@@ -128,8 +133,13 @@
             </div>
           </div>
 
-          <label style="margin-top:8px">Tag di gioco</label>
-          <div id="tags-list" class="checklist"></div>
+          <div style="margin-top:8px">
+            <label>Tag di gioco</label>
+            <div class="row" style="align-items:center">
+              <div id="tags-summary" class="tags" style="min-height:30px"></div>
+              <button id="btn-tags" type="button">Seleziona tag</button>
+            </div>
+          </div>
 
           <div style="margin-top:10px">
             <button id="btn-create" type="button" class="btn-accent">Crea</button>
@@ -154,6 +164,18 @@
     </div>
   </div>
 
+  <!-- TAG PICKER MODAL -->
+  <dialog id="tags-dialog">
+    <div class="dlg-head">Seleziona tag</div>
+    <div class="dlg-body">
+      <div id="tags-list" class="checklist"></div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" id="tags-cancel">Annulla</button>
+      <button type="button" id="tags-apply" class="btn-accent">Applica</button>
+    </div>
+  </dialog>
+
   <!-- keys -->
   <script src="/env.js"></script>
 
@@ -161,12 +183,12 @@
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-    // Status badges
+    // badges
     const setBadge = (id, ok) => { const el=document.getElementById(id); if (el) el.textContent = ok ? 'OK' : 'err'; };
     setBadge('env-ok', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
     setBadge('sdk-ok', true);
 
-    // Supabase singleton
+    // supabase singleton
     const SB_OPTS = { auth: { storageKey: 'sb-tempioludico-web-v1', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
     window.__supabase ??= createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, SB_OPTS);
     window.supabase = window.__supabase;
@@ -174,30 +196,60 @@
     const $ = (id) => document.getElementById(id);
     const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
     const log = (id, msg) => { const el=$(id); if(el){ el.textContent=msg; } };
+    const escapeHtml = (s)=> s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-    // Available tags
+    // Allowed tags (your fixed vocabulary)
     const AVAILABLE_TAGS = [
-  'worker-placement','deck-building','engine-building','tableau-building','area-control',
-  'drafting','set-collection','tile-laying','push-your-luck','trick-taking',
-  'dexterity','action-selection','negotiation','auction','memory',
-  'roll-and-write','roll-and-move',
-  'cooperative','semi-cooperative','competitive','team-based','traitor',
-  'hidden-roles','social-deduction','take-that','low-interaction'
-];
+      'worker-placement','deck-building','engine-building','tableau-building','area-control',
+      'drafting','set-collection','tile-laying','push-your-luck','trick-taking',
+      'dexterity','action-selection','negotiation','auction','memory',
+      'roll-and-write','roll-and-move',
+      'cooperative','semi-cooperative','competitive','team-based','traitor',
+      'hidden-roles','social-deduction','take-that','low-interaction'
+    ];
 
-    function renderTagsChecklist(){
-      const host = $('tags-list'); host.innerHTML='';
+    // ---------- TAG PICKER STATE ----------
+    let SELECTED_TAGS = [];
+
+    function renderTagsSummary(){
+      const host = $('tags-summary'); host.innerHTML = '';
+      if (!SELECTED_TAGS.length){
+        const span = document.createElement('span');
+        span.className = 'muted';
+        span.textContent = 'Nessun tag selezionato';
+        host.appendChild(span);
+        return;
+      }
+      for (const t of SELECTED_TAGS){
+        const chip = document.createElement('span');
+        chip.className = 'tag';
+        chip.textContent = t;
+        host.appendChild(chip);
+      }
+    }
+
+    function openTagsDialog(){
+      const list = $('tags-list'); list.innerHTML='';
       for (const t of AVAILABLE_TAGS){
         const id = 'tag_' + t.replace(/\W+/g,'_');
         const label = document.createElement('label');
-        label.innerHTML = `<input type="checkbox" id="${id}" value="${t}"><span>${t}</span>`;
-        host.appendChild(label);
+        const checked = SELECTED_TAGS.includes(t) ? 'checked' : '';
+        label.innerHTML = `<input type="checkbox" id="${id}" value="${t}" ${checked}><span>${t}</span>`;
+        list.appendChild(label);
       }
+      $('tags-dialog').showModal();
     }
-    function readSelectedTags(){
-      return Array.from($('tags-list').querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value);
+    function applyTagsDialog(){
+      const list = $('tags-list');
+      SELECTED_TAGS = Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value);
+      $('tags-dialog').close();
+      renderTagsSummary();
+    }
+    function cancelTagsDialog(){
+      $('tags-dialog').close();
     }
 
+    // ---------- AUTH + BOOT (single-flight) ----------
     function renderAuth(isAuthed){
       $('auth').classList.toggle('hidden', isAuthed);
       $('app').classList.toggle('hidden', !isAuthed);
@@ -209,8 +261,8 @@
       $('role').textContent='Ruolo: —';
       $('tables').innerHTML=''; $('mine').innerHTML='';
       log('tables-log',''); log('auth-log',''); log('profile-log',''); log('create-log','');
+      SELECTED_TAGS = []; renderTagsSummary();
     }
-
     async function pingRest(){
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -221,22 +273,19 @@
       return { ok: res.ok, status: res.status };
     }
 
-    // ---------- SINGLE-FLIGHT BOOT ----------
     let bootPromise = null;
     function bootDataOnce(){
       if (bootPromise) return bootPromise;
       bootPromise = (async ()=>{
-        renderTagsChecklist();
+        renderTagsSummary();
         await loadProfile();
         await Promise.all([loadTavoli(), loadMine()]);
       })().finally(()=>{ bootPromise = null; });
       return bootPromise;
     }
 
-    // Auth listener
     window.__sbAuthSub?.unsubscribe?.();
     window.__sbAuthSub = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('auth:', event, session?.user?.id || null);
       const authed = !!session;
       renderAuth(authed);
       if (authed){
@@ -292,8 +341,6 @@
       `;
     }
 
-    function escapeHtml(s){ return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
     async function fetchTavoli(signal){
       const { data, error } = await supabase
         .from('tavoli')
@@ -319,24 +366,14 @@
       for (const r of data || []) m.set(r.id, r.username || null);
       return m;
     }
-
     async function listTavoliWithExtras(signal){
       const [{ data: userObj }] = await Promise.all([supabase.auth.getUser()]);
       const me = userObj?.user?.id || null;
-
-      const [rows, counts] = await Promise.all([
-        fetchTavoli(signal),
-        fetchReservationCounts(signal)
-      ]);
-
-      // unique by id
+      const [rows, counts] = await Promise.all([fetchTavoli(signal), fetchReservationCounts(signal)]);
       const seen = new Set();
       const uniq = rows.filter(t => !seen.has(t.id) && seen.add(t.id));
-
-      // fetch creator usernames
       const creatorIds = [...new Set(uniq.map(x=>x.creator_id).filter(Boolean))];
       const nameMap = await fetchCreatorsUsernames(creatorIds);
-
       return uniq.map(t => ({
         ...t,
         reservations_count: counts.get(t.id) || 0,
@@ -344,7 +381,6 @@
         can_delete: me && t.creator_id === me
       }));
     }
-
     async function loadTavoli(){
       tavoliCtrl?.abort();
       tavoliCtrl = new AbortController();
@@ -375,7 +411,6 @@
               await loadTavoli(); await loadMine();
             });
           }
-
           frag.appendChild(el);
         }
         host.appendChild(frag);
@@ -477,11 +512,11 @@
 
       const title = $('title').value.trim();
       const description = $('description').value.trim();
-      const starts_input = $('starts_at').value; // local datetime
+      const starts_input = $('starts_at').value;
       const seats = Number($('max_seats').value);
       const complexity_label = $('complexity_label').value;
       const image_url = $('image_url').value.trim();
-      const tags = readSelectedTags();
+      const tags = SELECTED_TAGS.slice();
 
       if (!title) return log('create-log','Titolo obbligatorio');
       if (!description) return log('create-log','Descrizione obbligatoria');
@@ -492,14 +527,8 @@
       if (!allowed.has(complexity_label)) return log('create-log','Complessità non valida');
 
       const payload = {
-        title,
-        description,
-        starts_at: dt.value,
-        max_seats: seats,
-        complexity_label,
-        image_url: image_url || null,
-        tags,
-        creator_id: user.id
+        title, description, starts_at: dt.value, max_seats: seats,
+        complexity_label, image_url: image_url || null, tags, creator_id: user.id
       };
 
       const { error } = await supabase.from('tavoli').insert(payload);
@@ -508,12 +537,12 @@
         $('title').value=''; $('description').value='';
         $('starts_at').value=''; $('max_seats').value='';
         $('image_url').value=''; $('complexity_label').value='medio';
-        $('tags-list').querySelectorAll('input[type="checkbox"]').forEach(c=>c.checked=false);
+        SELECTED_TAGS = []; renderTagsSummary();
         await loadTavoli(); await loadMine();
       }
     }
 
-    // ---------- Boot, bind, initial mount ----------
+    // ---------- Bind + initial ----------
     function bind(){
       const map = new Map([
         ['btn-signup',        signUp],
@@ -523,13 +552,23 @@
         ['btn-save-profile',  saveProfile],
         ['btn-ping',          async ()=>{ const r=await pingRest(); alert('Ping ' + JSON.stringify(r)); }],
         ['btn-create',        createTavolo],
-        ['btn-refresh',       async ()=>{ await pingRest(); await Promise.all([loadTavoli(), loadMine()]); }]
+        ['btn-refresh',       async ()=>{ await pingRest(); await Promise.all([loadTavoli(), loadMine()]); }],
+        ['btn-tags',          openTagsDialog],
+        ['tags-apply',        applyTagsDialog],
+        ['tags-cancel',       cancelTagsDialog],
       ]);
       for (const [id,fn] of map){
         const el=$(id); if (!el) continue;
         el.onclick = null;
         el.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fn(); }catch(err){ console.error(id, err); } });
       }
+      // close dialog on backdrop click (optional)
+      $('tags-dialog').addEventListener('click', (e)=>{
+        const dlg = $('tags-dialog');
+        const rect = dlg.getBoundingClientRect();
+        const inDialog = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+        if (!inDialog) dlg.close();
+      });
     }
 
     (async ()=>{
