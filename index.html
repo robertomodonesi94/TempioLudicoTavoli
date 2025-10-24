@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -14,11 +14,12 @@
     h1{font-size:20px;margin:0}
     .badge{font-size:12px;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:2px 8px}
     .grid{display:grid;gap:14px}
-    @media (min-width:900px){.grid{grid-template-columns:1fr 1fr}}
+    @media (min-width:1000px){.grid{grid-template-columns:1fr 1fr}}
     .card{background:var(--card);border:1px solid var(--b);border-radius:12px;padding:14px}
     .card h2{margin:0 0 8px 0;font-size:16px;color:var(--ink)}
     label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
     input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--b2);border-radius:8px}
+    textarea{min-height:88px;resize:vertical}
     .row{display:flex;gap:8px;flex-wrap:wrap}
     .row>*{flex:1}
     button{border:1px solid var(--b2);border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer;background:#f3f4f6}
@@ -30,7 +31,13 @@
     .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
     .thumb{width:100%;height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--b)}
     .noimg{height:160px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--b2);border-radius:8px;color:#6b7280;background:#fafafa}
+    .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+    .tag{font-size:12px;border:1px solid var(--b2);border-radius:999px;padding:2px 8px;background:#f9fafb}
     .hidden{display:none}
+    .cols-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    @media (max-width:700px){.cols-2{grid-template-columns:1fr}}
+    .checklist{display:flex;flex-wrap:wrap;gap:8px}
+    .checklist label{display:flex;align-items:center;gap:6px;border:1px solid var(--b2);padding:6px 10px;border-radius:999px;background:#fff;font-size:12px;margin:0}
   </style>
 </head>
 <body>
@@ -44,6 +51,7 @@
       </div>
     </header>
 
+    <!-- AUTH -->
     <section id="auth" class="card">
       <h2>Accesso</h2>
       <div class="row">
@@ -69,6 +77,7 @@
       </div>
     </section>
 
+    <!-- APP -->
     <div id="app" class="hidden" aria-hidden="true">
       <div class="grid">
         <section class="card">
@@ -84,14 +93,33 @@
 
         <section class="card">
           <h2>Crea tavolo</h2>
+
           <label>Titolo</label>
           <input id="title" placeholder="Nome sessione" />
-          <div class="row">
+
+          <label>Descrizione</label>
+          <textarea id="description" placeholder="Dettagli del tavolo, durata, prerequisiti, ecc."></textarea>
+
+          <div class="cols-2">
+            <div>
+              <label>Data e ora (future)</label>
+              <input id="starts_at" type="datetime-local" />
+            </div>
+            <div>
+              <label>Posti disponibili</label>
+              <input id="max_seats" type="number" min="1" step="1" placeholder="es. 5" />
+            </div>
+          </div>
+
+          <div class="cols-2" style="margin-top:8px">
             <div>
               <label>Complessità</label>
-              <select id="complexity">
-                <option value="1">1</option><option value="2">2</option>
-                <option value="3" selected>3</option><option value="4">4</option><option value="5">5</option>
+              <select id="complexity_label">
+                <option value="molto semplice">molto semplice</option>
+                <option value="semplice">semplice</option>
+                <option value="medio" selected>medio</option>
+                <option value="complesso">complesso</option>
+                <option value="molto complesso">molto complesso</option>
               </select>
             </div>
             <div>
@@ -99,6 +127,10 @@
               <input id="image_url" placeholder="https://…" />
             </div>
           </div>
+
+          <label style="margin-top:8px">Tag di gioco</label>
+          <div id="tags-list" class="checklist"></div>
+
           <div style="margin-top:10px">
             <button id="btn-create" type="button" class="btn-accent">Crea</button>
           </div>
@@ -122,24 +154,45 @@
     </div>
   </div>
 
+  <!-- keys -->
   <script src="/env.js"></script>
 
+  <!-- app -->
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-    // badges
+    // Status badges
     const setBadge = (id, ok) => { const el=document.getElementById(id); if (el) el.textContent = ok ? 'OK' : 'err'; };
     setBadge('env-ok', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
     setBadge('sdk-ok', true);
 
-    // supabase singleton
+    // Supabase singleton
     const SB_OPTS = { auth: { storageKey: 'sb-tempioludico-web-v1', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
     window.__supabase ??= createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, SB_OPTS);
     window.supabase = window.__supabase;
 
     const $ = (id) => document.getElementById(id);
     const fmt = (d) => d ? new Date(d).toLocaleString() : '—';
-    const log = (id, msg, cls='muted') => { const el=$(id); if(el){ el.className=cls; el.textContent=msg; } };
+    const log = (id, msg) => { const el=$(id); if(el){ el.textContent=msg; } };
+
+    // Available tags
+    const AVAILABLE_TAGS = [
+      'dungeon crawler','story-driven','cooperative','competitivo',
+      'one-shot','campagna','miniature','investigativo','horror','fantasy','sci-fi'
+    ];
+
+    function renderTagsChecklist(){
+      const host = $('tags-list'); host.innerHTML='';
+      for (const t of AVAILABLE_TAGS){
+        const id = 'tag_' + t.replace(/\W+/g,'_');
+        const label = document.createElement('label');
+        label.innerHTML = `<input type="checkbox" id="${id}" value="${t}"><span>${t}</span>`;
+        host.appendChild(label);
+      }
+    }
+    function readSelectedTags(){
+      return Array.from($('tags-list').querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value);
+    }
 
     function renderAuth(isAuthed){
       $('auth').classList.toggle('hidden', isAuthed);
@@ -167,15 +220,16 @@
     // ---------- SINGLE-FLIGHT BOOT ----------
     let bootPromise = null;
     function bootDataOnce(){
-      if (bootPromise) return bootPromise;         // reuse running boot
+      if (bootPromise) return bootPromise;
       bootPromise = (async ()=>{
+        renderTagsChecklist();
         await loadProfile();
         await Promise.all([loadTavoli(), loadMine()]);
-      })().finally(()=>{ bootPromise = null; });   // allow future boots after finish
+      })().finally(()=>{ bootPromise = null; });
       return bootPromise;
     }
 
-    // auth listener: update UI only, call single-flight boot
+    // Auth listener
     window.__sbAuthSub?.unsubscribe?.();
     window.__sbAuthSub = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('auth:', event, session?.user?.id || null);
@@ -189,7 +243,7 @@
       }
     }).data.subscription;
 
-    // ---------- PROFILE FUNZIONA----------
+    // ---------- PROFILE ----------
     async function loadProfile(){
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -209,52 +263,82 @@
       if (!error) await loadProfile();
     }
 
-    // ---------- DATA (with abortable loads) ----------
+    // ---------- DATA (abortable loads) ----------
     let tavoliCtrl = null;
     let mineCtrl = null;
 
-    function renderTableItem(t, currentUserId){
-      const canDelete = t.creator_id && t.creator_id === currentUserId;
+    function renderTableItem(t){
+      const tagChips = (t.tags || []).map(x=>`<span class="tag">${x}</span>`).join('');
       return `
         ${t.image_url ? `<img class="thumb" src="${t.image_url}" alt="${t.title}" />` : `<div class="noimg">No image</div>`}
         <h3 style="margin:8px 0 6px 0">${t.title}</h3>
-        <div class="meta"><span>Complexity: ${t.complexity}</span><span>Created: ${fmt(t.created_at)}</span><span>Bookings: ${t.reservations_count}</span></div>
+        <div class="meta">
+          <span>Creato da: ${t.creator_username || t.creator_id || '—'}</span>
+          <span>Complessità: ${t.complexity_label || '—'}</span>
+          <span>Posti: ${t.max_seats ?? '—'}</span>
+          <span>Data: ${fmt(t.starts_at)}</span>
+          <span>Prenotazioni: ${t.reservations_count}</span>
+        </div>
+        <div class="muted" style="margin-top:6px">${t.description ? escapeHtml(t.description) : ''}</div>
+        <div class="tags">${tagChips}</div>
         <div class="row" style="margin-top:8px">
           <button class="btn-accent" data-act="reserve" data-id="${t.id}" type="button">Prenota</button>
-          ${canDelete ? `<button class="btn-danger" data-act="delete" data-id="${t.id}" type="button">Elimina</button>` : ``}
+          ${t.can_delete ? `<button class="btn-danger" data-act="delete" data-id="${t.id}" type="button">Elimina</button>` : ``}
         </div>
       `;
     }
 
-    async function fetchTavoli(abortSignal){
+    function escapeHtml(s){ return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+    async function fetchTavoli(signal){
       const { data, error } = await supabase
         .from('tavoli')
-        .select('id,title,complexity,image_url,created_at,creator_id')
+        .select('id,title,description,starts_at,max_seats,complexity_label,image_url,created_at,creator_id,tags')
         .order('created_at',{ascending:false})
         .limit(200)
-        .abortSignal?.(abortSignal); // supabase-js v2 supports abortSignal chain
+        .abortSignal?.(signal);
       if (error) throw error;
       return data || [];
     }
-    async function fetchReservationCounts(abortSignal){
-      const { data, error } = await supabase
-        .from('reservations')
-        .select('tavolo_id')
-        .abortSignal?.(abortSignal);
+    async function fetchReservationCounts(signal){
+      const { data, error } = await supabase.from('reservations').select('tavolo_id').abortSignal?.(signal);
       if (error) throw error;
       const m = new Map();
       for (const r of (data || [])) m.set(r.tavolo_id, (m.get(r.tavolo_id) || 0) + 1);
       return m;
     }
+    async function fetchCreatorsUsernames(ids){
+      if (!ids.length) return new Map();
+      const { data, error } = await supabase.from('profiles').select('id,username').in('id', ids);
+      if (error) return new Map();
+      const m = new Map();
+      for (const r of data || []) m.set(r.id, r.username || null);
+      return m;
+    }
 
-    async function listTavoliWithCounts(abortSignal){
-      const [tavoli, counts] = await Promise.all([
-        fetchTavoli(abortSignal),
-        fetchReservationCounts(abortSignal)
+    async function listTavoliWithExtras(signal){
+      const [{ data: userObj }] = await Promise.all([supabase.auth.getUser()]);
+      const me = userObj?.user?.id || null;
+
+      const [rows, counts] = await Promise.all([
+        fetchTavoli(signal),
+        fetchReservationCounts(signal)
       ]);
+
+      // unique by id
       const seen = new Set();
-      return tavoli.filter(t => !seen.has(t.id) && seen.add(t.id))
-                   .map(t => ({ ...t, reservations_count: counts.get(t.id) || 0 }));
+      const uniq = rows.filter(t => !seen.has(t.id) && seen.add(t.id));
+
+      // fetch creator usernames
+      const creatorIds = [...new Set(uniq.map(x=>x.creator_id).filter(Boolean))];
+      const nameMap = await fetchCreatorsUsernames(creatorIds);
+
+      return uniq.map(t => ({
+        ...t,
+        reservations_count: counts.get(t.id) || 0,
+        creator_username: nameMap.get(t.creator_id) || null,
+        can_delete: me && t.creator_id === me
+      }));
     }
 
     async function loadTavoli(){
@@ -262,14 +346,12 @@
       tavoliCtrl = new AbortController();
       const host = $('tables'); host.innerHTML='';
       try{
-        const { data: { user } } = await supabase.auth.getUser();
-        const items = await listTavoliWithCounts(tavoliCtrl.signal);
-        // build then bind then commit
+        const items = await listTavoliWithExtras(tavoliCtrl.signal);
         const frag = document.createDocumentFragment();
-        items.forEach(t=>{
+        for (const t of items){
           const el = document.createElement('div');
           el.className='item';
-          el.innerHTML = renderTableItem(t, user?.id || null);
+          el.innerHTML = renderTableItem(t);
 
           el.querySelector('[data-act="reserve"]').addEventListener('click', async (ev)=>{
             ev.preventDefault();
@@ -278,9 +360,10 @@
             if (error) alert('Errore: ' + error.message);
             await loadTavoli(); await loadMine();
           });
-          const del = el.querySelector('[data-act="delete"]');
-          if (del){
-            del.addEventListener('click', async (ev)=>{
+
+          const delBtn = el.querySelector('[data-act="delete"]');
+          if (delBtn){
+            delBtn.addEventListener('click', async (ev)=>{
               ev.preventDefault();
               if (!confirm('Eliminare questo tavolo?')) return;
               const { error } = await supabase.from('tavoli').delete().eq('id', t.id);
@@ -288,17 +371,23 @@
               await loadTavoli(); await loadMine();
             });
           }
+
           frag.appendChild(el);
-        });
+        }
         host.appendChild(frag);
         if (!items.length) host.innerHTML = '<div class="muted">Nessun tavolo</div>';
-        log('tables-log', `${items.length} tavoli`);
+        $('tables-log').textContent = `${items.length} tavoli`;
       }catch(e){
         if (e?.name === 'AbortError') return;
-        log('tables-log', e.message || String(e));
+        $('tables-log').textContent = e.message || String(e);
       }
     }
 
+    async function deleteReservation(id){
+      await pingRest();
+      const { error } = await supabase.from('reservations').delete().eq('id', id);
+      if (error) throw error;
+    }
     async function loadMine(){
       mineCtrl?.abort();
       mineCtrl = new AbortController();
@@ -314,8 +403,8 @@
 
         const ids=[...new Set(data.map(r=>r.tavolo_id))];
         const t = await supabase.from('tavoli').select('id,title').in('id', ids);
-        const frag = document.createDocumentFragment();
 
+        const frag = document.createDocumentFragment();
         for (const r of data){
           const tt = t.data?.find(x=>x.id===r.tavolo_id);
           const el = document.createElement('div');
@@ -368,23 +457,59 @@
       log('auth-log','Signed out');
     }
 
-    // ---------- Create table ----------
+    // ---------- Create table with validation ----------
+    function parseFutureLocalDateTime(v){
+      if (!v) return { ok:false, error:'Data e ora obbligatorie' };
+      const d = new Date(v);
+      if (Number.isNaN(+d)) return { ok:false, error:'Formato data/ora non valido' };
+      if (d.getTime() <= Date.now()+60*1000) return { ok:false, error:'La data deve essere nel futuro' };
+      return { ok:true, value:d.toISOString() };
+    }
+
     async function createTavolo(){
       await pingRest();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return log('create-log','Login required');
-      const title=$('title').value.trim(); const complexity=Number($('complexity').value); const image_url=$('image_url').value.trim();
-      if (!title) return log('create-log','Title required');
-      if (!Number.isFinite(complexity) || complexity<1 || complexity>5) return log('create-log','Complexity 1–5');
-      const payload = { title, complexity, creator_id: user.id }; if (image_url) payload.image_url = image_url;
+
+      const title = $('title').value.trim();
+      const description = $('description').value.trim();
+      const starts_input = $('starts_at').value; // local datetime
+      const seats = Number($('max_seats').value);
+      const complexity_label = $('complexity_label').value;
+      const image_url = $('image_url').value.trim();
+      const tags = readSelectedTags();
+
+      if (!title) return log('create-log','Titolo obbligatorio');
+      if (!description) return log('create-log','Descrizione obbligatoria');
+      const dt = parseFutureLocalDateTime(starts_input);
+      if (!dt.ok) return log('create-log', dt.error);
+      if (!Number.isFinite(seats) || seats < 1) return log('create-log','Posti deve essere >= 1');
+      const allowed = new Set(['molto semplice','semplice','medio','complesso','molto complesso']);
+      if (!allowed.has(complexity_label)) return log('create-log','Complessità non valida');
+
+      const payload = {
+        title,
+        description,
+        starts_at: dt.value,
+        max_seats: seats,
+        complexity_label,
+        image_url: image_url || null,
+        tags,
+        creator_id: user.id
+      };
+
       const { error } = await supabase.from('tavoli').insert(payload);
-      log('create-log', error ? error.message : 'Table created');
-      if (!error){ $('title').value=''; $('image_url').value=''; $('complexity').value='3'; await loadTavoli(); await loadMine(); }
+      log('create-log', error ? error.message : 'Tavolo creato');
+      if (!error){
+        $('title').value=''; $('description').value='';
+        $('starts_at').value=''; $('max_seats').value='';
+        $('image_url').value=''; $('complexity_label').value='medio';
+        $('tags-list').querySelectorAll('input[type="checkbox"]').forEach(c=>c.checked=false);
+        await loadTavoli(); await loadMine();
+      }
     }
 
     // ---------- Boot, bind, initial mount ----------
-    async function bootData(){ return bootDataOnce(); } // alias if you referenced bootData elsewhere
-
     function bind(){
       const map = new Map([
         ['btn-signup',        signUp],
