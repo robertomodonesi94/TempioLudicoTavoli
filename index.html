@@ -229,7 +229,7 @@
     setBadge('env-ok', !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY));
     setBadge('sdk-ok', true);
 
-    // Supabase client
+    // Supabase client — use default storage key so existing sessions are detected
     const SB_OPTS = { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } };
     window.__supabase ??= createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, SB_OPTS);
     const supabase = window.__supabase;
@@ -256,7 +256,7 @@
       'hidden-roles','social-deduction','take-that','low-interaction'
     ];
 
-    // UI
+    // UI state
     function renderAuth(isAuthed){
       $('auth').classList.toggle('hidden', isAuthed);
       $('app').classList.toggle('hidden', !isAuthed);
@@ -276,18 +276,20 @@
       $('image-create-wrap').classList.add('hidden');
     }
 
-    // Tags
+    // Tags UI
     function renderTagsSummary(){
       const host = $('tags-summary'); if (!host) return;
       host.innerHTML = '';
-      if (!SELECTED_TAGS.length){ const s=document.createElement('span'); s.className='muted'; s.textContent='Nessun tag selezionato'; host.appendChild(s); return; }
-      for (const t of SELECTED_TAGS){ const chip=document.createElement('span'); chip.className='tag'; chip.textContent=t; host.appendChild(chip); }
+      const arr = SELECTED_TAGS;
+      if (!arr.length){ const s=document.createElement('span'); s.className='muted'; s.textContent='Nessun tag selezionato'; host.appendChild(s); return; }
+      for (const t of arr){ const chip=document.createElement('span'); chip.className='tag'; chip.textContent=t; host.appendChild(chip); }
     }
     function renderTagsSummaryEdit(){
       const host = $('tags-summary-edit'); if (!host) return;
       host.innerHTML = '';
-      if (!EDIT_TAGS.length){ const s=document.createElement('span'); s.className='muted'; s.textContent='Nessun tag selezionato'; host.appendChild(s); return; }
-      for (const t of EDIT_TAGS){ const chip=document.createElement('span'); chip.className='tag'; chip.textContent=t; host.appendChild(chip); }
+      const arr = EDIT_TAGS;
+      if (!arr.length){ const s=document.createElement('span'); s.className='muted'; s.textContent='Nessun tag selezionato'; host.appendChild(s); return; }
+      for (const t of arr){ const chip=document.createElement('span'); chip.className='tag'; chip.textContent=t; host.appendChild(chip); }
     }
     function openTagsDialog(){
       const list = $('tags-list'); list.innerHTML='';
@@ -310,14 +312,14 @@
     }
     function cancelTagsDialog(){ $('tags-dialog').close(); }
 
-    // Role via secure RPC (works with RLS)
+    // Role
     async function loadRole(){
       const { data: { user } } = await supabase.auth.getUser();
       if (!user){ IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
-      // ensure profile row exists for first-time users
+      // Ensure profile row exists, then read role
       await supabase.from('profiles').upsert({ id: user.id }, { onConflict: 'id' }).select().maybeSingle().catch(()=>null);
-      const { data, error } = await supabase.rpc('get_my_role');
-      const role = error ? 'user' : (data || 'user');
+      const { data, error } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      const role = (!error && data?.role) ? data.role : 'user';
       IS_ADMIN = role === 'admin';
       $('role').textContent = 'Ruolo: ' + role;
       $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
@@ -588,9 +590,11 @@
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return log('auth-log', error.message);
       $('whoami').textContent = 'Utente: ' + (data.session.user.email || data.session.user.id);
-      renderAuth(true);
-      await loadRole();
-      await Promise.all([loadTavoli(), loadMine()]);
+      renderAuth(true);               // show app immediately
+      loadRole().then(()=>{           // then resolve role and refresh
+        $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN);
+        loadTavoli(); loadMine();
+      });
       log('auth-log','Accesso effettuato');
     }
     async function signInAnon(){
@@ -598,8 +602,7 @@
       if (error) return log('auth-log', error.message);
       $('whoami').textContent = 'Utente: ' + data.user.id;
       renderAuth(true);
-      await loadRole();
-      await Promise.all([loadTavoli(), loadMine()]);
+      loadRole().then(()=>{ $('image-create-wrap').classList.toggle('hidden', !IS_ADMIN); loadTavoli(); loadMine(); });
       log('auth-log','Accesso anonimo attivo');
     }
     async function signOut(){
@@ -644,14 +647,14 @@
       }
     }
 
-    // Bootstrap
+    // Bootstrap: detect existing session and show app immediately if present
     (async ()=>{
       bind();
       const { data: { session } } = await supabase.auth.getSession();
       if (session){
         $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
         renderAuth(true);
-        await loadRole();
+        await loadRole();                 // resolve admin flag
         await Promise.all([loadTavoli(), loadMine()]);
       } else {
         renderAuth(false);
@@ -661,7 +664,7 @@
       window.__sbAuthSub?.unsubscribe?.();
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
         const authed = !!s;
-        renderAuth(authed);
+        renderAuth(authed);               // do not block on role
         if (authed){
           $('whoami').textContent = 'Utente: ' + (s.user.email || s.user.id);
           await loadRole();
