@@ -89,6 +89,7 @@
     </div>
   </div>
 
+  <!-- LOGIN -->
   <dialog id="login-dialog">
     <div class="dlg-head">Accedi</div>
     <div class="dlg-body">
@@ -107,6 +108,7 @@
     </div>
   </dialog>
 
+  <!-- SIGNUP -->
   <dialog id="signup-dialog">
     <div class="dlg-head">Crea account</div>
     <div class="dlg-body">
@@ -122,6 +124,7 @@
     </div>
   </dialog>
 
+  <!-- CREATE -->
   <dialog id="create-dialog">
     <div class="dlg-head">Crea tavolo</div>
     <div class="dlg-body">
@@ -168,6 +171,7 @@
     </div>
   </dialog>
 
+  <!-- EDIT -->
   <dialog id="edit-dialog">
     <div class="dlg-head">Modifica tavolo</div>
     <div class="dlg-body">
@@ -215,6 +219,7 @@
     </div>
   </dialog>
 
+  <!-- RESERVATIONS -->
   <dialog id="mine-dialog">
     <div class="dlg-head">
       <span id="mine-title">Le mie prenotazioni</span>
@@ -228,6 +233,7 @@
     </div>
   </dialog>
 
+  <!-- TAG PICKER -->
   <dialog id="tags-dialog">
     <div class="dlg-head">Seleziona tag</div>
     <div class="dlg-body">
@@ -268,8 +274,10 @@
     let EDIT_TAGS = [];
     let TAGS_TARGET = 'create';
 
+    // Supabase
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Auth UI
     function renderAuth(authed){
       $('btn-login').classList.toggle('hidden', authed);
       $('btn-logout').classList.toggle('hidden', !authed);
@@ -280,6 +288,7 @@
       $('auth-ok').textContent = authed ? 'on' : 'off';
     }
 
+    // Tags UI
     function renderTagsSummary(){
       const host = $('tags-summary'); if (!host) return;
       host.innerHTML = '';
@@ -316,6 +325,7 @@
       $('tags-dialog').close();
     }
 
+    // Data helpers
     async function fetchTavoli(){
       const { data, error } = await supabase
         .from('tavoli')
@@ -334,7 +344,6 @@
     }
     async function fetchCreatorsUsernames(ids){
       if (!ids.length) return new Map();
-      // FIX: niente "email" perché non esiste in profiles
       const { data, error } = await supabase.from('profiles').select('id,username').in('id', ids);
       if (error) return new Map();
       const m = new Map();
@@ -359,6 +368,7 @@
       return { rows, usernames };
     }
 
+    // Cards
     function tavoloCard(t, usernames){
       const el = document.createElement('div');
       el.className='item';
@@ -387,13 +397,13 @@
       el.querySelector('[data-act="reserve"]').addEventListener('click', async (ev)=>{
         ev.preventDefault();
         const { error } = await supabase.from('reservations').insert({ tavolo_id: t.id });
-        if (error) return alert('Errore prenotazione: ' + error.message);
+        if (error) return alert('Errore prenotazione: ' + friendlyError(error));
         await loadTavoli();
       });
       el.querySelector('[data-act="cancel"]').addEventListener('click', async (ev)=>{
         ev.preventDefault();
         const { error } = await supabase.from('reservations').delete().eq('tavolo_id', t.id);
-        if (error) return alert('Errore cancellazione: ' + error.message);
+        if (error) return alert('Errore cancellazione: ' + friendlyError(error));
         await loadTavoli();
       });
       el.querySelector('[data-act="edit"]').addEventListener('click', (ev)=>{ ev.preventDefault(); openEdit(t); });
@@ -401,12 +411,22 @@
         ev.preventDefault();
         if (!confirm('Eliminare questo tavolo?')) return;
         const { error } = await supabase.from('tavoli').delete().eq('id', t.id);
-        if (error) return alert('Errore eliminazione: ' + error.message);
+        if (error) return alert('Errore eliminazione: ' + friendlyError(error));
         await loadTavoli();
       });
       return el;
     }
 
+    function friendlyError(error){
+      if (!error) return 'errore sconosciuto';
+      const p = [];
+      if (error.message) p.push(error.message);
+      if (error.details) p.push(error.details);
+      if (error.hint) p.push(error.hint);
+      return p.join(' — ');
+    }
+
+    // List
     async function loadTavoli(){
       log('tables-log','Caricamento…');
       const host = $('tables'); host.innerHTML='';
@@ -420,10 +440,11 @@
         }
         log('tables-log','');
       }catch(err){
-        log('tables-log','Errore: ' + err.message);
+        log('tables-log','Errore: ' + friendlyError(err));
       }
     }
 
+    // Reservations
     async function loadMine(){
       const host = $('mine'); host.innerHTML='';
       const titleEl = $('mine-title');
@@ -444,11 +465,10 @@
 
         if (IS_ADMIN){
           titleEl.textContent = 'Prenotazioni (admin)';
-          subtitleEl.textContent = reservations?.length ? `${reservations.length} record` : '';
         } else {
           titleEl.textContent = 'Le mie prenotazioni';
-          subtitleEl.textContent = reservations?.length ? `${reservations.length} record` : '';
         }
+        subtitleEl.textContent = reservations?.length ? `${reservations.length} record` : '';
 
         if (!reservations?.length){
           host.innerHTML = '<div class="muted">Nessuna prenotazione</div>';
@@ -458,7 +478,6 @@
         const tavoloIds = [...new Set(reservations.map(r=>r.tavolo_id))];
         const userIds = [...new Set(reservations.map(r=>r.user_id))];
 
-        // FIX: niente "email" perché non esiste in profiles
         const [tavoliRes, profilesRes] = await Promise.all([
           supabase.from('tavoli').select('id,title,starts_at').in('id', tavoloIds),
           supabase.from('profiles').select('id,username').in('id', userIds)
@@ -500,7 +519,7 @@
             ev.preventDefault();
             if (!confirm('Eliminare questa prenotazione?')) return;
             const { error: delErr } = await supabase.from('reservations').delete().eq('id', r.id);
-            if (delErr) return alert('Errore eliminazione: ' + delErr.message);
+            if (delErr) return alert('Errore eliminazione: ' + friendlyError(delErr));
             await loadMine();
             await loadTavoli();
           });
@@ -510,40 +529,58 @@
         host.innerHTML = '';
         host.appendChild(table);
       }catch(err){
-        host.innerHTML = '<div class="muted">Errore: '+err.message+'</div>';
+        host.innerHTML = '<div class="muted">Errore: '+friendlyError(err)+'</div>';
       }
     }
 
+    // Create
     async function createTavolo(){
       if (!IS_ADMIN) return log('create-log','Non autorizzato');
+
+      // user id per creator_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user){ return log('create-log','Sessione non valida'); }
+
       const title = $('title').value.trim();
       const description = $('description').value.trim();
       const seats = Number($('max_seats').value);
       const complexity_label = $('complexity_label').value;
       const starts_raw = $('starts_at').value;
       const dt = parseFutureLocalDateTime(starts_raw);
+      const image_url = $('image_url').value.trim();
+
+      // Validazioni semplici
       if (!title) return log('create-log','Titolo obbligatorio');
       if (!description) return log('create-log','Descrizione obbligatoria');
       if (!dt.ok) return log('create-log', dt.error);
-      if (!Number.isFinite(seats) || seats < 1) return log('create-log','Posti deve essere >= 1');
+      if (!Number.isInteger(seats) || seats < 1) return log('create-log','Posti deve essere un intero ≥ 1');
 
+      // Preparo payload coerente con schema
       const payload = {
         title,
         description,
         max_seats: seats,
-        complexity_label,
-        starts_at: dt.value,
-        image_url: $('image_url').value.trim() || null,
-        tags: SELECTED_TAGS.slice()
+        complexity_label,               // assicurati che corrisponda all’enum del DB
+        starts_at: dt.value,            // ISO 8601
+        image_url: image_url || null,   // evita stringhe vuote
+        creator_id: user.id,            // FIX principale
+        tags: (SELECTED_TAGS && SELECTED_TAGS.length) ? SELECTED_TAGS.slice() : null
       };
+
       const { error } = await supabase.from('tavoli').insert(payload);
-      if (error) return log('create-log','Errore: ' + error.message);
+      if (error){
+        // Mostra tutti i dettagli di PostgREST
+        return log('create-log', 'Errore: ' + friendlyError(error));
+      }
+
+      // Reset form
       $('create-dialog').close();
       $('title').value=''; $('description').value=''; $('starts_at').value=''; $('max_seats').value=''; $('image_url').value='';
       SELECTED_TAGS=[]; renderTagsSummary();
       await loadTavoli();
     }
 
+    // Edit
     function openEdit(t){
       $('edit_id').value = t.id;
       $('edit_title').value = t.title || '';
@@ -565,10 +602,12 @@
       const complexity_label = $('edit_complexity_label').value;
       const starts_raw = $('edit_starts_at').value;
       const dt = parseFutureLocalDateTime(starts_raw);
+      const image_url = $('edit_image_url').value.trim();
+
       if (!title) return log('edit-log','Titolo obbligatorio');
       if (!description) return log('edit-log','Descrizione obbligatoria');
       if (!dt.ok) return log('edit-log', dt.error);
-      if (!Number.isFinite(seats) || seats < 1) return log('edit-log','Posti deve essere >= 1');
+      if (!Number.isInteger(seats) || seats < 1) return log('edit-log','Posti deve essere un intero ≥ 1');
 
       const payload = {
         title,
@@ -576,15 +615,16 @@
         max_seats: seats,
         complexity_label,
         starts_at: dt.value,
-        image_url: $('edit_image_url').value.trim() || null,
-        tags: EDIT_TAGS.slice()
+        image_url: image_url || null,
+        tags: (EDIT_TAGS && EDIT_TAGS.length) ? EDIT_TAGS.slice() : null
       };
       const { error } = await supabase.from('tavoli').update(payload).eq('id', id);
-      if (error) return log('edit-log','Errore: ' + error.message);
+      if (error) return log('edit-log','Errore: ' + friendlyError(error));
       $('edit-dialog').close();
       await loadTavoli();
     }
 
+    // Role and session
     async function loadRole(){
       const { data: { user } } = await supabase.auth.getUser();
       if (!user){ IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
@@ -596,13 +636,14 @@
       renderAuth(true);
     }
 
+    // Email/password auth
     async function doPasswordLogin(){
       const email = $('login-email').value.trim();
       const password = $('login-password').value;
       log('login-msg','');
       if (!email || !password){ log('login-msg','Email e password sono obbligatorie'); return; }
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error){ log('login-msg', error.message); return; }
+      if (error){ log('login-msg', friendlyError(error)); return; }
       $('login-dialog').close();
       $('whoami').textContent = 'Utente: ' + (data.user?.email || data.user?.id || '');
       await loadRole();
@@ -614,7 +655,7 @@
       log('signup-msg','');
       if (!email || !password){ log('signup-msg','Email e password sono obbligatorie'); return; }
       const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error){ log('signup-msg', error.message); return; }
+      if (error){ log('signup-msg', friendlyError(error)); return; }
       if (!data.user){ log('signup-msg','Registrazione eseguita. Controlla l’email per la conferma.'); return; }
       $('signup-dialog').close();
       $('whoami').textContent = 'Utente: ' + (data.user.email || data.user.id);
@@ -622,6 +663,7 @@
       await Promise.all([loadTavoli(), loadMine()]);
     }
 
+    // Reset UI
     function resetUI(){
       $('whoami').textContent = 'Utente: —';
       log('tables-log',''); log('auth-log',''); log('create-log',''); log('edit-log',''); log('login-msg',''); log('signup-msg','');
@@ -630,6 +672,7 @@
       renderAuth(false);
     }
 
+    // Bind
     function bind(){
       const map = new Map([
         ['btn-login',         ()=>{ $('login-dialog').showModal(); }],
@@ -669,6 +712,7 @@
       $('signup-password')?.addEventListener('keydown', (e)=>{ if (e.key==='Enter') doPasswordSignup(); });
     }
 
+    // Bootstrap
     (async ()=>{
       bind();
       $('env-ok').textContent = (typeof SUPABASE_URL==='string' && typeof SUPABASE_ANON_KEY==='string') ? 'ok' : 'err';
