@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tempio Ludico — Tavoli</title>
   <meta name="theme-color" content="#ed445b" />
+
   <style>
     :root{--bg:#ed445b;--ink:#0b0f14;--card:#fff;--muted:#5b6c85;--b:#e5e7eb;--b2:#d1d5db}
     *{box-sizing:border-box}
@@ -35,18 +36,13 @@
     .hidden{display:none}
     .cols-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     @media (max-width:700px){.cols-2{grid-template-columns:1fr}}
-    dialog{border:none;border-radius:12px;max-width:900px;width:92vw;padding:0;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+
+    dialog{border:none;border-radius:12px;max-width:900px;width:92vw;padding:0;box-shadow:0 10px 30px rgba(0,0,0,.25);background:#fff}
     .dlg-head{padding:14px 16px;border-bottom:1px solid var(--b);font-weight:700;display:flex;justify-content:space-between;align-items:center}
     .dlg-body{padding:12px 16px;max-height:65vh;overflow:auto}
     .dlg-foot{padding:12px 16px;border-top:1px solid var(--b);display:flex;gap:8px;justify-content:flex-end}
-    .checklist{display:flex;flex-wrap:wrap;gap:8px}
-    .checklist label{display:flex;align-items:center;gap:6px;border:1px solid var(--b2);padding:6px 10px;border-radius:999px;background:#fff;font-size:12px;margin:0}
-    .table{width:100%;border-collapse:collapse}
-    .table th,.table td{padding:8px 10px;border-bottom:1px solid var(--b);text-align:left}
-    .table th{font-size:12px;color:#374151}
-    .table td{font-size:14px}
 
-    /* NEW: reservations list inside card */
+    /* Reservations list block inside card */
     .resv{margin-top:10px;padding-top:10px;border-top:1px dashed var(--b2)}
     .resv h4{margin:0 0 6px 0;font-size:13px;color:#374151}
     .resv-list{display:flex;flex-direction:column;gap:6px}
@@ -54,6 +50,10 @@
     .resv-when{font-size:12px;color:#6b7280;white-space:nowrap}
     .resv-who{flex:1;overflow:hidden;text-overflow:ellipsis}
     .pill{border:1px solid var(--b2);border-radius:999px;padding:1px 6px;font-size:12px}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:8px 10px;border-bottom:1px solid var(--b);text-align:left}
+    .table th{font-size:12px;color:#374151}
+    .table td{font-size:14px}
   </style>
 </head>
 <body>
@@ -98,10 +98,24 @@
     </div>
   </div>
 
-  <!-- LOGIN / SIGNUP / CREATE / EDIT / MINE dialogs: unchanged UI omitted for brevity -->
-  <!-- Keep the dialogs exactly as in your current file. The logic below is drop-in compatible. -->
+  <!-- Le mie prenotazioni -->
+  <dialog id="mine-dialog">
+    <div class="dlg-head">
+      <div>
+        <div id="mine-title">Le mie prenotazioni</div>
+        <div id="mine-subtitle" class="muted"></div>
+      </div>
+      <button type="button" onclick="document.getElementById('mine-dialog').close()">Chiudi</button>
+    </div>
+    <div class="dlg-body">
+      <div id="mine"></div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" onclick="document.getElementById('mine-dialog').close()">Chiudi</button>
+    </div>
+  </dialog>
 
-  <!-- Supabase global SDK + env -->
+  <!-- Supabase SDK + env -->
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="env.js"></script>
 
@@ -109,15 +123,13 @@
     const $ = (id) => document.getElementById(id);
     const fmt = (iso) => new Date(iso).toLocaleString('it-IT');
 
-    let IS_ADMIN = false;
-    let AVAILABLE_TAGS = ['boardgame','gdr','wargame','skirmish','party','torneo'];
-    let SELECTED_TAGS = [];
-    let EDIT_TAGS = [];
-
     // Supabase client
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // --- Auth UI helpers (unchanged) ---
+    // State
+    let IS_ADMIN = false;
+
+    // UI toggles
     function renderAuth(authed){
       $('btn-login').classList.toggle('hidden', authed);
       $('btn-logout').classList.toggle('hidden', !authed);
@@ -128,32 +140,7 @@
       $('auth-ok').textContent = authed ? 'on' : 'off';
     }
 
-    // --- NEW: reservations-by-table map from the VIEW ---
-    async function fetchReservationsByTable(tavoloIds){
-      // When no filter, we still want all rows grouped by table
-      let q = supabase
-        .from('v_tavolo_reservations')
-        .select('tavolo_id, display_name, status, created_at')
-        .order('created_at', { ascending: true });
-
-      if (Array.isArray(tavoloIds) && tavoloIds.length) q = q.in('tavolo_id', tavoloIds);
-
-      const { data, error } = await q;
-      if (error) throw error;
-
-      const m = new Map();
-      for (const r of data || []) {
-        if (!m.has(r.tavolo_id)) m.set(r.tavolo_id, []);
-        m.get(r.tavolo_id).push({
-          who: r.display_name || '—',
-          status: r.status || null,
-          when: r.created_at
-        });
-      }
-      return m;
-    }
-
-    // Existing data fetchers
+    // Fetch tavoli
     async function fetchTavoli(){
       const { data, error } = await supabase
         .from('tavoli')
@@ -163,6 +150,7 @@
       if (error) throw error;
       return data || [];
     }
+    // Count reservations per tavolo
     async function fetchReservationCounts(){
       const { data, error } = await supabase.from('reservations').select('tavolo_id');
       if (error) throw error;
@@ -170,6 +158,7 @@
       for (const r of (data || [])) m.set(r.tavolo_id, (m.get(r.tavolo_id) || 0) + 1);
       return m;
     }
+    // Creator usernames (optional)
     async function fetchCreatorsUsernames(ids){
       if (!ids.length) return new Map();
       const { data, error } = await supabase.from('profiles').select('id,username').in('id', ids);
@@ -178,8 +167,24 @@
       for (const r of data || []) m.set(r.id, r.username || null);
       return m;
     }
+    // Names per tavolo from view
+    async function fetchReservationsByTable(tavoloIds){
+      let q = supabase
+        .from('v_tavolo_reservations')
+        .select('tavolo_id, display_name, status, created_at')
+        .order('created_at', { ascending: true });
+      if (Array.isArray(tavoloIds) && tavoloIds.length) q = q.in('tavolo_id', tavoloIds);
+      const { data, error } = await q;
+      if (error) throw error;
+      const m = new Map();
+      for (const r of data || []) {
+        if (!m.has(r.tavolo_id)) m.set(r.tavolo_id, []);
+        m.get(r.tavolo_id).push({ who: r.display_name || '—', status: r.status || null, when: r.created_at });
+      }
+      return m;
+    }
 
-    // Aggregate with reservations names
+    // Aggregate
     async function listTavoliWithExtras(){
       const { data: userObj } = await supabase.auth.getUser();
       const me = userObj?.user?.id || null;
@@ -188,14 +193,13 @@
       const creatorIds = [...new Set(rows.map(r=>r.creator_id).filter(Boolean))];
       const usernames = await fetchCreatorsUsernames(creatorIds);
 
-      // NEW: get names for each table from the view
       const tavoloIds = rows.map(r=>r.id);
       const reservationsByTable = await fetchReservationsByTable(tavoloIds);
 
       for (const r of rows){
         r.seats_taken = counts.get(r.id) || 0;
         r.me_reserved = false;
-        r.resv_list = reservationsByTable.get(r.id) || []; // array of {who,status,when}
+        r.resv_list = reservationsByTable.get(r.id) || [];
       }
       if (me){
         const { data: myRes } = await supabase.from('reservations').select('tavolo_id').eq('user_id', me);
@@ -205,13 +209,12 @@
       return { rows, usernames };
     }
 
-    // Card renderer with names list
+    // Render card
     function tavoloCard(t, usernames){
       const el = document.createElement('div');
       el.className='item';
       const hasImg = t.image_url && /^https?:\/\//.test(t.image_url);
 
-      // Build reservations HTML
       const resvHTML = t.resv_list.length
         ? `<div class="resv">
              <h4>Prenotazioni</h4>
@@ -249,7 +252,6 @@
           </div>
         </div>`;
 
-      // Actions
       el.querySelector('[data-act="reserve"]').addEventListener('click', async (ev)=>{
         ev.preventDefault();
         const { error } = await supabase.from('reservations').insert({ tavolo_id: t.id });
@@ -290,7 +292,77 @@
       }
     }
 
-    // Minimal auth/bootstrap (unchanged logic)
+    // My reservations dialog — uses v_reservations_for_ui
+    async function loadMine(){
+      const host = $('mine'); host.innerHTML='';
+      const titleEl = $('mine-title');
+      const subtitleEl = $('mine-subtitle');
+
+      const { data: userObj } = await supabase.auth.getUser();
+      const me = userObj?.user?.id || null;
+
+      let q = supabase
+        .from('v_reservations_for_ui')
+        .select('reservation_id,tavolo_id,tavolo_title,tavolo_starts_at,user_id,display_name,created_at')
+        .order('created_at', { ascending: false });
+
+      if (!IS_ADMIN && me) q = q.eq('user_id', me);
+
+      const { data: rows, error } = await q;
+      if (error) { host.innerHTML = `<div class="muted">Errore: ${error.message||error}</div>`; return; }
+
+      titleEl.textContent = IS_ADMIN ? 'Prenotazioni (admin)' : 'Le mie prenotazioni';
+      subtitleEl.textContent = rows?.length ? `${rows.length} record` : '';
+
+      if (!rows?.length){
+        host.innerHTML = '<div class="muted">Nessuna prenotazione</div>';
+        return;
+      }
+
+      const table = document.createElement('table');
+      table.className = 'table';
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th style="width:26%">Tavolo</th>
+            <th style="width:22%">Data tavolo</th>
+            <th style="width:22%">Prenotato il</th>
+            <th style="width:22%">Utente</th>
+            <th style="width:8%"></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+      const tbody = table.querySelector('tbody');
+
+      for (const r of rows){
+        const tr = document.createElement('tr');
+        const canDelete = IS_ADMIN || r.user_id === me;
+        tr.innerHTML = `
+          <td>${r.tavolo_title || r.tavolo_id}</td>
+          <td>${r.tavolo_starts_at ? new Date(r.tavolo_starts_at).toLocaleString('it-IT') : '—'}</td>
+          <td>${new Date(r.created_at).toLocaleString('it-IT')}</td>
+          <td>${r.display_name || r.user_id}</td>
+          <td><button class="btn-danger" data-id="${r.reservation_id}" ${canDelete?'':'disabled'}>Elimina</button></td>
+        `;
+        tr.querySelector('button')?.addEventListener('click', async (ev)=>{
+          ev.preventDefault();
+          if (!confirm('Eliminare questa prenotazione?')) return;
+          const { error: delErr } = await supabase.from('reservations').delete().eq('id', r.reservation_id);
+          if (delErr) return alert('Errore eliminazione: ' + (delErr.message || ''));
+          await loadMine();
+          await loadTavoli();
+        });
+        tbody.appendChild(tr);
+      }
+
+      host.appendChild(table);
+    }
+
+    // Minimal edit stub
+    function openEdit(){ alert('Modifica tavolo: implementazione omessa.'); }
+
+    // Auth bootstrap and handlers
     (async ()=>{
       $('env-ok').textContent = (typeof SUPABASE_URL==='string' && typeof SUPABASE_ANON_KEY==='string') ? 'ok' : 'err';
       $('sdk-ok').textContent = window.supabase ? 'ok' : 'err';
@@ -305,24 +377,49 @@
         renderAuth(false);
       }
 
+      $('btn-login').addEventListener('click', async ()=>{
+        const email = prompt('Inserisci email per magic link:');
+        if (!email) return;
+        const { error } = await supabase.auth.signInWithOtp({ email });
+        if (error) alert('Errore login: ' + (error.message || ''));
+        else alert('Controlla la tua email per completare il login.');
+      });
+
+      $('btn-logout').addEventListener('click', async ()=>{
+        await supabase.auth.signOut();
+        IS_ADMIN = false;
+        $('role').textContent = 'Ruolo: —';
+        renderAuth(false);
+      });
+
+      $('btn-open-mine').addEventListener('click', async ()=>{
+        await loadMine();
+        $('mine-dialog').showModal();
+      });
+
+      $('btn-refresh')?.addEventListener('click', loadTavoli);
+
       // Auth state changes
       supabase.auth.onAuthStateChange(async (_e, s) => {
         if (s){
           $('whoami').textContent = 'Utente: ' + (s.user.email || s.user.id);
+          $('auth-ok').textContent = 'on';
           await loadRole();
           await loadTavoli();
         } else {
+          $('whoami').textContent = 'Utente: —';
+          $('auth-ok').textContent = 'off';
+          IS_ADMIN = false;
+          $('role').textContent = 'Ruolo: —';
           renderAuth(false);
         }
       });
-
-      // Buttons
-      $('btn-refresh')?.addEventListener('click', loadTavoli);
     })();
 
     async function loadRole(){
       const { data: { user } } = await supabase.auth.getUser();
       if (!user){ IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
+      // Ensure profile row exists then read role
       await supabase.from('profiles').upsert({ id: user.id }, { onConflict: 'id' }).select().maybeSingle();
       const { data } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
       const role = data?.role || 'user';
@@ -330,9 +427,6 @@
       $('role').textContent = 'Ruolo: ' + role;
       renderAuth(true);
     }
-
-    // Stubs you already had: openEdit, dialogs, create, saveEdit, etc.
-    function openEdit(){ alert('Funzione di modifica come prima.'); }
   </script>
 </body>
 </html>
