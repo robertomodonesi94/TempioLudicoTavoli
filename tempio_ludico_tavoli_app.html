@@ -7,7 +7,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet" />
-  <!-- Supabase JS via ESM CDN -->
   <script type="module" src="https://esm.sh/@supabase/supabase-js@2"></script>
   <style>
     :root{--red:#d61e2b;--red-600:#b31620;--white:#fff;--bg:#fff6f6;--ink:#1a1a1a;--muted:#777}
@@ -56,7 +55,6 @@
   </header>
 
   <main>
-    <!-- Login / Username unico -->
     <section id="loginCard" class="card">
       <h2>Benvenuto! 👋</h2>
       <p class="muted">Accedi scegliendo un <strong>username univoco</strong> (senza email né password). Potrai cambiarlo più tardi.</p>
@@ -67,7 +65,6 @@
       <p class="hint">Se esiste già, scegli un altro nome. Gli admin sono gestiti in modo sicuro dal server.</p>
     </section>
 
-    <!-- Tabs -->
     <nav class="tabs hidden" id="tabs">
       <button class="tab active" data-tab="tavoli">Tavoli</button>
       <button class="tab" data-tab="prenotazioni">Prenotazioni</button>
@@ -75,7 +72,6 @@
       <button class="tab hidden" data-tab="utenti" id="tabUtenti">Utenti</button>
     </nav>
 
-    <!-- Tavoli -->
     <section id="page-tavoli" class="hidden">
       <div class="card" id="createTableCard">
         <h3>Crea un tavolo</h3>
@@ -114,7 +110,6 @@
       </div>
     </section>
 
-    <!-- Prenotazioni -->
     <section id="page-prenotazioni" class="hidden">
       <div class="card">
         <h3>Le mie prenotazioni</h3>
@@ -122,7 +117,6 @@
       </div>
     </section>
 
-    <!-- Privacy -->
     <section id="page-privacy" class="hidden">
       <div class="card">
         <h3>Privacy Policy</h3>
@@ -132,7 +126,6 @@
       </div>
     </section>
 
-    <!-- Utenti (solo admin) -->
     <section id="page-utenti" class="hidden">
       <div class="card">
         <h3>Gestione utenti</h3>
@@ -148,19 +141,15 @@
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-    // ⚙️ CONFIGURAZIONE —> inserisci le tue variabili in produzione
     const SUPABASE_URL = window.env?.SUPABASE_URL || '%%SUPABASE_URL%%'
     const SUPABASE_ANON_KEY = window.env?.SUPABASE_ANON_KEY || '%%SUPABASE_ANON_KEY%%'
-    // URL del PDF della privacy (puoi caricarlo su Supabase Storage o Vercel static)
     const PRIVACY_URL = window.env?.PRIVACY_URL || 'sandbox:/mnt/data/Privacy+Policy.pdf'
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-    // Stato
     let session = null
-    let profile = null // { id, username, is_admin }
+    let profile = null
 
-    // Utility
     const $ = sel => document.querySelector(sel)
     const el = (tag, props={}, children=[]) => {
       const n = document.createElement(tag)
@@ -175,10 +164,8 @@
     }
     const fmtDateTime = (iso)=> new Date(iso).toLocaleString('it-IT', { dateStyle:'medium', timeStyle:'short' })
 
-    // UI wiring
     $('#privacyFrame').src = PRIVACY_URL
 
-    // Tabs
     const tabsNav = $('#tabs')
     tabsNav.addEventListener('click', (e)=>{
       const btn = e.target.closest('.tab')
@@ -193,7 +180,6 @@
       if(tab==='utenti') loadUsers()
     })
 
-    // Anonymous sign-in + username unico
     async function ensureAuth(){
       const { data: { session: s } } = await supabase.auth.getSession()
       session = s
@@ -207,7 +193,7 @@
     }
 
     async function fetchProfile(){
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
+      const { data, error } = await supabase.from('profiles').select('id, username, is_admin, created_at').eq('id', session.user.id).maybeSingle()
       if(error){ console.error(error) }
       profile = data
     }
@@ -232,22 +218,29 @@
       }
     }
 
+    // FIX: avoid select=* on insert, request only needed columns
     $('#btnLogin').addEventListener('click', async ()=>{
       const username = ($('#usernameInput').value||'').trim()
       if(!username){ alert('Inserisci un username.'); return }
-      // Crea o aggiorna profilo con username unico
-      const { error: dupErr } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .insert({ id: session.user.id, username })
-      if(dupErr){
-        if(dupErr.code === '23505'){ alert('Username già in uso. Scegline un altro.'); return }
-        if(dupErr.message?.includes('duplicate')){ alert('Username già in uso.'); return }
+        .select('id, username, is_admin')   // <-- avoids forbidden on select=*
+        .single()
+      if(error){
+        if(error.code === '23505' || (error.message||'').includes('duplicate')){
+          alert('Username già in uso. Scegline un altro.')
+          return
+        }
+        console.error(error)
+        alert('Errore creazione profilo.')
+        return
       }
-      await fetchProfile()
+      profile = data
       renderLogin()
     })
 
-    // Crea tavolo su public.tavoli
+    // Crea tavolo
     $('#btnCreateTable').addEventListener('click', async ()=>{
       try{
         const name = $('#tNome').value.trim()
@@ -270,13 +263,12 @@
           tags: [] // NOT NULL su tags
         }
         const { error } = await supabase.from('tavoli').insert(payload)
-        if(error) throw error
+        if(error){ console.error(error); alert('Errore creazione tavolo.'); return }
         $('#tNome').value = ''; $('#tDesc').value=''
         loadTables()
       }catch(err){ console.error(err); alert('Errore creazione tavolo.') }
     })
 
-    // Carica tavoli da public.tavoli_view
     async function loadTables(){
       const q = ($('#search').value||'').trim()
       let query = supabase.from('tavoli_view').select('*').order('starts_at', { ascending: true })
@@ -325,7 +317,6 @@
     }
 
     async function reserveSeat(tableId){
-      // user_id impostato dal trigger set_res_user(); RLS con with check user_id = auth.uid()
       const { error } = await supabase.from('reservations').insert({ tavolo_id: tableId })
       if(error){ alert(error.message||'Errore prenotazione'); return }
       loadTables(); loadReservations()
@@ -347,7 +338,6 @@
       const description = prompt('Descrizione', row.description||''); if(description===null) return
       const { error } = await supabase.from('tavoli').update({ name, description }).eq('id', row.id)
       if(error){ alert('Errore salvataggio.'); return }
-      // Immagine opzionale
       if(confirm('Vuoi caricare/aggiornare un\'immagine?')){
         const input = document.createElement('input'); input.type='file'; input.accept='image/*'
         input.onchange = async ()=>{
@@ -365,7 +355,6 @@
       }
     }
 
-    // Prenotazioni dell'utente
     async function loadReservations(){
       const { data, error } = await supabase.from('my_reservations_view').select('*').order('starts_at',{ascending:true})
       if(error){ console.error(error); return }
@@ -385,7 +374,6 @@
       })
     }
 
-    // Utenti (solo admin)
     async function loadUsers(){
       const { data, error } = await supabase.from('profiles_admin_view').select('*').order('created_at',{ascending:false})
       if(error){ console.error(error); return }
@@ -412,150 +400,8 @@
       })
     }
 
-    // Ricerca
     $('#search').addEventListener('input', ()=> loadTables())
-
-    // Avvio
     ensureAuth()
-  </script>
-
-  <!-- 📄 SCHEMA & POLICY (copia in Supabase SQL Editor e esegui una volta) -->
-  <script>
-/*
--- 1) TABELLE DI BASE --------------------------------------------------------
-create table if not exists profiles (
-  id uuid primary key references auth.users on delete cascade,
-  username text unique not null,
-  is_admin boolean not null default false,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists tavoli (
-  id uuid primary key default gen_random_uuid(),
-  creator_id uuid not null references profiles(id) on delete cascade,
-  name text not null,
-  description text,
-  duration_minutes int not null check (duration_minutes > 0),
-  starts_at timestamptz not null check (starts_at > now()),
-  max_seats int not null check (max_seats > 0 and max_seats <= 20),
-  complexity_label text not null check (complexity_label in ('molto semplice','semplice','medio','complesso','molto complesso')),
-  tags text[] not null default '{}'::text[],
-  image_url text,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists reservations (
-  id uuid primary key default gen_random_uuid(),
-  tavolo_id uuid not null references tavoli(id) on delete cascade,
-  user_id uuid not null references profiles(id) on delete cascade,
-  created_at timestamptz not null default now(),
-  unique (tavolo_id, user_id)
-);
-
--- 2) VISTE -----------------------------------------------------------
-create or replace view tavoli_view as
-select
-  t.*,
-  p.username as creator_name,
-  (
-    select count(*)::int
-    from reservations r
-    where r.tavolo_id = t.id
-  ) as reserved,
-  (
-    t.max_seats - (
-      select count(*)::int from reservations r where r.tavolo_id = t.id
-    )
-  ) as seats_left,
-  (
-    select array_agg(distinct pr.username order by pr.username)
-    from reservations r2
-    join profiles pr on pr.id = r2.user_id
-    where r2.tavolo_id = t.id
-  ) as reserved_usernames
-from tavoli t
-left join profiles p on p.id = t.creator_id;
-
-create or replace view my_reservations_view as
-select r.id as reservation_id, t.*
-from reservations r
-join tavoli t on t.id = r.tavolo_id
-where r.user_id = auth.uid();
-
-create or replace view profiles_admin_view as
-select id, username, is_admin, created_at from profiles;
-
--- 3) FUNZIONI ADMIN -------------------------------------------------
-create or replace function toggle_admin(p_user_id uuid)
-returns void language sql security definer set search_path = public as $$
-  update profiles set is_admin = not is_admin where id = p_user_id;
-$$;
-
-create or replace function admin_delete_user(p_user_id uuid)
-returns void language plpgsql security definer set search_path = public as $$
-begin
-  delete from reservations where user_id = p_user_id;
-  delete from tavoli where creator_id = p_user_id;
-  delete from profiles where id = p_user_id;
-end;$$;
-
--- 4) TRIGGER per creator_id e user_id --------------------------------
-create or replace function set_creator_id()
-returns trigger language plpgsql as $$ begin new.creator_id := auth.uid(); return new; end; $$;
-drop trigger if exists trg_tavoli_creator on tavoli;
-create trigger trg_tavoli_creator before insert on tavoli for each row execute function set_creator_id();
-
-create or replace function set_res_user()
-returns trigger language plpgsql as $$ begin new.user_id := auth.uid(); return new; end; $$;
-drop trigger if exists trg_res_user on reservations;
-create trigger trg_res_user before insert on reservations for each row execute function set_res_user();
-
--- 5) RLS ------------------------------------------------------------
-alter table profiles enable row level security;
-alter table tavoli enable row level security;
-alter table reservations enable row level security;
-
--- profiles: utente vede sé; admin vede tutti
-drop policy if exists "profile self" on profiles;
-drop policy if exists "create own profile" on profiles;
-create policy "profile self" on profiles
-for select using (id = auth.uid() or exists(select 1 from profiles p where p.id = auth.uid() and p.is_admin));
-create policy "create own profile" on profiles
-for insert with check (id = auth.uid());
-
--- tavoli: tutti leggono; creatore CRUD; admin tutto
-drop policy if exists "tavoli read all" on tavoli;
-drop policy if exists "tavoli insert self" on tavoli;
-drop policy if exists "tavoli update owner or admin" on tavoli;
-drop policy if exists "tavoli delete owner or admin" on tavoli;
-create policy "tavoli read all" on tavoli
-for select using (true);
-create policy "tavoli insert self" on tavoli
-for insert with check (creator_id = auth.uid());
-create policy "tavoli update owner or admin" on tavoli
-for update using (creator_id = auth.uid() or exists(select 1 from profiles p where p.id = auth.uid() and p.is_admin));
-create policy "tavoli delete owner or admin" on tavoli
-for delete using (creator_id = auth.uid() or exists(select 1 from profiles p where p.id = auth.uid() and p.is_admin));
-
--- reservations: utente gestisce le proprie; admin può cancellare tutte
-drop policy if exists "res read own or admin" on reservations;
-drop policy if exists "res insert self" on reservations;
-drop policy if exists "res delete self or admin" on reservations;
-create policy "res read own or admin" on reservations
-for select using (user_id = auth.uid() or exists(select 1 from profiles p where p.id = auth.uid() and p.is_admin));
-create policy "res insert self" on reservations
-for insert with check (user_id = auth.uid());
-create policy "res delete self or admin" on reservations
-for delete using (user_id = auth.uid() or exists(select 1 from profiles p where p.id = auth.uid() and p.is_admin));
-
--- 6) INDICI (opzionali ma consigliati) --------------------------------
-create index if not exists reservations_tavolo_id_idx on reservations(tavolo_id);
-create index if not exists reservations_user_id_idx   on reservations(user_id);
-create index if not exists tavoli_starts_at_idx       on tavoli(starts_at);
-
--- 7) PROMOZIONE ADMIN INIZIALE (una tantum) --------------------------
--- update profiles set is_admin = true where id = '<YOUR_AUTH_UID>';
-*/
   </script>
 </body>
 </html>
