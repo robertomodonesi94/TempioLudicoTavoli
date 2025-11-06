@@ -20,6 +20,7 @@
     .card h2{margin:0 0 8px 0;font-size:16px;color:var(--ink)}
     label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
     input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--b2);border-radius:8px}
+    input[readonly]{background:#f9fafb}
     textarea{min-height:88px;resize:vertical}
     button{border:1px solid var(--b2);border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer;background:#f3f4f6}
     .btn-accent{background:#ed445b;color:#fff;border-color:#d73c52}
@@ -28,7 +29,7 @@
     .muted{color:var(--muted)}
     .list{display:flex;flex-direction:column;gap:10px}
     .item{border:1px solid var(--b);border-radius:10px;padding:12px;background:#fff}
-    .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+    .meta{font-size:12px;color:#6b7280;display:flex;gap:10px;flex-wrap:wrap}
     .thumb{width:100%;height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--b)}
     .noimg{height:160px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--b2);border-radius:8px;color:#6b7280;background:#fafafa}
     .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
@@ -42,7 +43,7 @@
     .dlg-body{padding:12px 16px;max-height:65vh;overflow:auto}
     .dlg-foot{padding:12px 16px;border-top:1px solid var(--b);display:flex;gap:8px;justify-content:flex-end}
 
-    /* Reservations list block inside card */
+    /* Reservations block */
     .resv{margin-top:10px;padding-top:10px;border-top:1px dashed var(--b2)}
     .resv h4{margin:0 0 6px 0;font-size:13px;color:#374151}
     .resv-list{display:flex;flex-direction:column;gap:6px}
@@ -50,10 +51,13 @@
     .resv-when{font-size:12px;color:#6b7280;white-space:nowrap}
     .resv-who{flex:1;overflow:hidden;text-overflow:ellipsis}
     .pill{border:1px solid var(--b2);border-radius:999px;padding:1px 6px;font-size:12px}
+
     .table{width:100%;border-collapse:collapse}
     .table th,.table td{padding:8px 10px;border-bottom:1px solid var(--b);text-align:left}
     .table th{font-size:12px;color:#374151}
     .table td{font-size:14px}
+    .error{color:#dc2626}
+    .ok{color:#16a34a}
   </style>
 </head>
 <body>
@@ -115,6 +119,58 @@
     </div>
   </dialog>
 
+  <!-- Modifica Tavolo -->
+  <dialog id="edit-dialog">
+    <form id="edit-form" method="dialog">
+      <div class="dlg-head">
+        <div>
+          <div>Modifica tavolo</div>
+          <div id="edit-subtitle" class="muted"></div>
+        </div>
+        <button type="button" onclick="document.getElementById('edit-dialog').close()">Chiudi</button>
+      </div>
+      <div class="dlg-body">
+        <input type="hidden" id="edit-id" />
+        <div class="cols-2">
+          <div>
+            <label for="edit-title">Titolo</label>
+            <input id="edit-title" required maxlength="120" />
+          </div>
+          <div>
+            <label for="edit-starts_at">Data e ora inizio</label>
+            <input id="edit-starts_at" type="datetime-local" required />
+          </div>
+        </div>
+        <label for="edit-description">Descrizione</label>
+        <textarea id="edit-description" maxlength="2000"></textarea>
+        <div class="cols-2">
+          <div>
+            <label for="edit-max_seats">Posti massimi</label>
+            <input id="edit-max_seats" type="number" min="1" max="999" required />
+          </div>
+          <div>
+            <label for="edit-complexity_label">Difficoltà</label>
+            <select id="edit-complexity_label">
+              <option value="facile">facile</option>
+              <option value="medio">medio</option>
+              <option value="difficile">difficile</option>
+            </select>
+          </div>
+        </div>
+        <label for="edit-image_url">Immagine (URL)</label>
+        <input id="edit-image_url" type="url" placeholder="https://..." />
+        <label for="edit-tags">Tag (separati da virgola)</label>
+        <input id="edit-tags" placeholder="boardgame,gdr,..." />
+        <div id="edit-error" class="error" style="margin-top:8px"></div>
+        <div id="edit-ok" class="ok" style="margin-top:8px"></div>
+      </div>
+      <div class="dlg-foot">
+        <button type="button" class="btn-danger" id="edit-delete">Elimina</button>
+        <button type="submit" class="btn-accent">Salva</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Supabase SDK + env -->
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="env.js"></script>
@@ -129,7 +185,6 @@
     // State
     let IS_ADMIN = false;
 
-    // UI toggles
     function renderAuth(authed){
       $('btn-login').classList.toggle('hidden', authed);
       $('btn-logout').classList.toggle('hidden', !authed);
@@ -140,7 +195,6 @@
       $('auth-ok').textContent = authed ? 'on' : 'off';
     }
 
-    // Fetch tavoli
     async function fetchTavoli(){
       const { data, error } = await supabase
         .from('tavoli')
@@ -150,7 +204,6 @@
       if (error) throw error;
       return data || [];
     }
-    // Count reservations per tavolo
     async function fetchReservationCounts(){
       const { data, error } = await supabase.from('reservations').select('tavolo_id');
       if (error) throw error;
@@ -158,7 +211,6 @@
       for (const r of (data || [])) m.set(r.tavolo_id, (m.get(r.tavolo_id) || 0) + 1);
       return m;
     }
-    // Creator usernames (optional)
     async function fetchCreatorsUsernames(ids){
       if (!ids.length) return new Map();
       const { data, error } = await supabase.from('profiles').select('id,username').in('id', ids);
@@ -167,7 +219,6 @@
       for (const r of data || []) m.set(r.id, r.username || null);
       return m;
     }
-    // Names per tavolo from view
     async function fetchReservationsByTable(tavoloIds){
       let q = supabase
         .from('v_tavolo_reservations')
@@ -184,7 +235,6 @@
       return m;
     }
 
-    // Aggregate
     async function listTavoliWithExtras(){
       const { data: userObj } = await supabase.auth.getUser();
       const me = userObj?.user?.id || null;
@@ -209,7 +259,6 @@
       return { rows, usernames };
     }
 
-    // Render card
     function tavoloCard(t, usernames){
       const el = document.createElement('div');
       el.className='item';
@@ -275,7 +324,6 @@
       return el;
     }
 
-    // List loader
     async function loadTavoli(){
       const host = $('tables'); host.innerHTML=''; $('tables-log').textContent='Caricamento…';
       try{
@@ -292,7 +340,7 @@
       }
     }
 
-    // My reservations dialog — uses v_reservations_for_ui
+    // ----- "Le mie prenotazioni" -----
     async function loadMine(){
       const host = $('mine'); host.innerHTML='';
       const titleEl = $('mine-title');
@@ -335,9 +383,12 @@
       `;
       const tbody = table.querySelector('tbody');
 
+      const { data: meObj } = await supabase.auth.getUser();
+      const meId = meObj?.user?.id || null;
+
       for (const r of rows){
         const tr = document.createElement('tr');
-        const canDelete = IS_ADMIN || r.user_id === me;
+        const canDelete = IS_ADMIN || r.user_id === meId;
         tr.innerHTML = `
           <td>${r.tavolo_title || r.tavolo_id}</td>
           <td>${r.tavolo_starts_at ? new Date(r.tavolo_starts_at).toLocaleString('it-IT') : '—'}</td>
@@ -355,14 +406,85 @@
         });
         tbody.appendChild(tr);
       }
-
       host.appendChild(table);
     }
 
-    // Minimal edit stub
-    function openEdit(){ alert('Modifica tavolo: implementazione omessa.'); }
+    // ----- Modifica Tavolo -----
+    function isoToLocal(iso){
+      if (!iso) return '';
+      // Expecting UTC or offset; convert to local for datetime-local input
+      const d = new Date(iso);
+      const pad = n => String(n).padStart(2,'0');
+      return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    function localToIso(localStr){
+      // datetime-local returns local time; convert to ISO with local timezone preserved as UTC time
+      const d = new Date(localStr);
+      return d.toISOString();
+    }
 
-    // Auth bootstrap and handlers
+    function openEdit(t){
+      if (!IS_ADMIN){ alert('Solo admin.'); return; }
+      $('edit-error').textContent = '';
+      $('edit-ok').textContent = '';
+
+      $('edit-id').value = t.id;
+      $('edit-title').value = t.title || '';
+      $('edit-description').value = t.description || '';
+      $('edit-starts_at').value = isoToLocal(t.starts_at);
+      $('edit-max_seats').value = t.max_seats ?? 1;
+      $('edit-complexity_label').value = t.complexity_label || 'medio';
+      $('edit-image_url').value = t.image_url || '';
+      $('edit-tags').value = Array.isArray(t.tags) ? t.tags.join(',') : '';
+
+      $('edit-subtitle').textContent = `ID: ${t.id}`;
+      $('edit-dialog').showModal();
+    }
+
+    $('edit-delete').addEventListener('click', async (ev)=>{
+      ev.preventDefault();
+      if (!IS_ADMIN) return alert('Solo admin.');
+      const id = $('edit-id').value;
+      if (!id) return;
+      if (!confirm('Eliminare questo tavolo?')) return;
+      const { error } = await supabase.from('tavoli').delete().eq('id', id);
+      if (error) { $('edit-error').textContent = error.message || String(error); return; }
+      $('edit-ok').textContent = 'Eliminato.';
+      await loadTavoli();
+      $('edit-dialog').close();
+    });
+
+    $('edit-form').addEventListener('submit', async (ev)=>{
+      ev.preventDefault();
+      if (!IS_ADMIN) return alert('Solo admin.');
+      $('edit-error').textContent = '';
+      $('edit-ok').textContent = '';
+
+      const id = $('edit-id').value;
+      const title = $('edit-title').value.trim();
+      const description = $('edit-description').value.trim();
+      const starts_at_local = $('edit-starts_at').value;
+      const max_seats = parseInt($('edit-max_seats').value, 10);
+      const complexity_label = $('edit-complexity_label').value || 'medio';
+      const image_url = $('edit-image_url').value.trim();
+      const tags = $('edit-tags').value.split(',').map(s=>s.trim()).filter(Boolean);
+
+      if (!title){ $('edit-error').textContent = 'Titolo richiesto.'; return; }
+      if (!starts_at_local){ $('edit-error').textContent = 'Data/ora richiesta.'; return; }
+      if (!Number.isFinite(max_seats) || max_seats < 1){ $('edit-error').textContent = 'Posti massimi non validi.'; return; }
+
+      const starts_at = localToIso(starts_at_local);
+
+      const payload = { title, description, starts_at, max_seats, complexity_label, image_url: image_url || null, tags };
+      const { error } = await supabase.from('tavoli').update(payload).eq('id', id);
+      if (error){ $('edit-error').textContent = error.message || String(error); return; }
+
+      $('edit-ok').textContent = 'Salvato.';
+      await loadTavoli();
+      $('edit-dialog').close();
+    });
+
+    // ----- Auth bootstrap -----
     (async ()=>{
       $('env-ok').textContent = (typeof SUPABASE_URL==='string' && typeof SUPABASE_ANON_KEY==='string') ? 'ok' : 'err';
       $('sdk-ok').textContent = window.supabase ? 'ok' : 'err';
@@ -399,7 +521,6 @@
 
       $('btn-refresh')?.addEventListener('click', loadTavoli);
 
-      // Auth state changes
       supabase.auth.onAuthStateChange(async (_e, s) => {
         if (s){
           $('whoami').textContent = 'Utente: ' + (s.user.email || s.user.id);
@@ -419,7 +540,6 @@
     async function loadRole(){
       const { data: { user } } = await supabase.auth.getUser();
       if (!user){ IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
-      // Ensure profile row exists then read role
       await supabase.from('profiles').upsert({ id: user.id }, { onConflict: 'id' }).select().maybeSingle();
       const { data } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
       const role = data?.role || 'user';
