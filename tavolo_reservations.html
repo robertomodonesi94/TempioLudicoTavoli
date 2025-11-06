@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prenotazioni Tavoli — Tempio Ludico</title>
+  <script type="module" src="https://esm.sh/@supabase/supabase-js@2"></script>
+  <script src="/env.js"></script>
+  <style>
+    :root{--ink:#111827;--muted:#6b7280;--b:#e5e7eb;--card:#fff;--brand:#ed445b}
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#fafafa;color:var(--ink)}
+    header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--b);padding:12px 16px;z-index:10}
+    h1{margin:0;font-size:20px}
+    main{max-width:1000px;margin:20px auto;padding:0 16px 40px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+    .card{background:var(--card);border:1px solid var(--b);border-radius:14px;padding:14px}
+    .card h2{margin:0 0 8px 0;font-size:16px}
+    .seat{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--b);border-radius:10px;padding:8px 10px;margin:6px 0;background:#fff}
+    .muted{color:var(--muted);font-size:12px}
+    .pill{border:1px solid var(--b);border-radius:999px;padding:2px 8px;font-size:12px}
+    .brand{color:var(--brand);font-weight:800}
+  </style>
+</head>
+<body>
+  <header><h1>Prenotazioni Tavoli <span class="brand">Tempio Ludico</span></h1></header>
+  <main>
+    <div id="content">Caricamento…</div>
+  </main>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    const supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, { auth: { persistSession: true } });
+    const el = document.getElementById('content');
+
+    // Optional: restrict to a single tavolo by ID. Leave empty to show all with reservations.
+    const ONLY_TAVOLO_ID = ''; // e.g. 'f6a8a008-329c-48d2-869f-cd180bfc4be9'
+
+    async function loadAll() {
+      let query = supabase
+        .from('v_tavolo_reservations')
+        .select('tavolo_id, tavolo_title, tavolo_starts_at, user_id, display_name, status, created_at');
+
+      if (ONLY_TAVOLO_ID) query = query.eq('tavolo_id', ONLY_TAVOLO_ID);
+
+      const { data, error } = await query
+        .order('tavolo_id', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        el.textContent = 'Errore caricamento';
+        console.error('v_tavolo_reservations error', error);
+        return;
+      }
+
+      // Group by tavolo
+      const byTable = new Map();
+      for (const r of data) {
+        if (!byTable.has(r.tavolo_id)) byTable.set(r.tavolo_id, { title: r.tavolo_title || `Tavolo ${r.tavolo_id}`, rows: [] });
+        byTable.get(r.tavolo_id).rows.push(r);
+      }
+
+      // Render
+      if (byTable.size === 0) {
+        el.innerHTML = '<div class="muted">Nessuna prenotazione.</div>';
+        return;
+      }
+      el.innerHTML = '<div class="grid"></div>';
+      const grid = el.querySelector('.grid');
+
+      for (const [tid, group] of byTable) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `<h2>${group.title}</h2><div class="muted">Prenotazioni visibili a tutti gli utenti</div>`;
+        for (const r of group.rows) {
+          const who = r.display_name || '—';
+          const status = r.status ? `<span class="pill">${r.status}</span>` : '';
+          const when = r.tavolo_starts_at ? new Date(r.tavolo_starts_at).toLocaleString() : '';
+          const line = document.createElement('div');
+          line.className = 'seat';
+          line.innerHTML = `<div>${when}</div><div>${who}</div>${status ? `<div>${status}</div>` : ''}`;
+          card.appendChild(line);
+        }
+        grid.appendChild(card);
+      }
+    }
+
+    loadAll();
+  </script>
+</body>
+</html>
