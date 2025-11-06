@@ -42,8 +42,7 @@
     .right{margin-left:auto}
     .hidden{display:none}
     .center{text-align:center}
-    .avatar{width:28px;height:28px;border-radius:50%;background:#ffd7da;display:inline-grid;place-items:center;font-weight:800;color:var(--red)}
-    #buildVersion{position:fixed;right:8px;bottom:8px;opacity:.5;font-size:12px}
+    .avatar{width:28px;height:28px;border-radius:50%;background:#ffd7da;display:inline-grid;place-items:center;font-weight:800;color:#red}
   </style>
 </head>
 <body>
@@ -138,7 +137,6 @@
   <div class="footer">
     <span class="hint">Condividi l'app inviando il link: funziona online su Vercel, senza PC acceso. ❤️ bianco & rosso</span>
   </div>
-  <div id="buildVersion" class="hint">build v=2025-11-06-01</div>
 
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -166,10 +164,8 @@
     }
     const fmtDateTime = (iso)=> new Date(iso).toLocaleString('it-IT', { dateStyle:'medium', timeStyle:'short' })
 
-    // Privacy PDF
     $('#privacyFrame').src = PRIVACY_URL
 
-    // Tabs
     const tabsNav = $('#tabs')
     tabsNav.addEventListener('click', (e)=>{
       const btn = e.target.closest('.tab')
@@ -184,7 +180,6 @@
       if(tab==='utenti') loadUsers()
     })
 
-    // Auth
     async function ensureAuth(){
       const { data: { session: s } } = await supabase.auth.getSession()
       session = s
@@ -206,15 +201,15 @@
       profile = data
     }
 
-    // LOGIN: insert only, no upsert, no on_conflict, no select=*
-    document.getElementById('btnLogin').addEventListener('click', async ()=>{
-      const username = (document.getElementById('usernameInput').value||'').trim()
+    // LOGIN: insert-only, no upsert, and no select=*
+    $('#btnLogin').addEventListener('click', async ()=>{
+      const username = ($('#usernameInput').value||'').trim()
       if(!username){ alert('Inserisci un username.'); return }
-
+      // 1) Try to insert your own row
       const { data, error, status } = await supabase
         .from('profiles')
         .insert({ id: session.user.id, username })
-        .select('id, username, is_admin')
+        .select('id, username, is_admin')     // ← request only allowed columns
         .single()
 
       if(!error && data){
@@ -223,7 +218,7 @@
         return
       }
 
-      // If row already exists or unique violation
+      // 2) If duplicate or already exists, fetch your row
       if(error && (error.code === '23505' || status === 409)){
         const { data: me, error: e2 } = await supabase
           .from('profiles')
@@ -240,28 +235,8 @@
       alert('Errore creazione profilo.')
     })
 
-    function renderLogin(){
-      const badge = el('div', {}, [
-        el('span', { class:'avatar' , html:(profile?.username||'?').slice(0,2).toUpperCase() }),
-        el('span', { style:'margin-left:8px;font-weight:800' , html: profile?.username||'ospite' }),
-        profile?.is_admin ? el('span',{ class:'pill', style:'margin-left:8px' , html:'ADMIN'}) : el('span')
-      ])
-      $('#userBadge').innerHTML = ''
-      $('#userBadge').appendChild(badge)
-
-      if(profile?.username){
-        $('#loginCard').classList.add('hidden')
-        $('#tabs').classList.remove('hidden')
-        $('#page-tavoli').classList.remove('hidden')
-        loadTables()
-        if(profile?.is_admin) $('#tabUtenti').classList.remove('hidden')
-      } else {
-        $('#loginCard').classList.remove('hidden')
-      }
-    }
-
-    // Create table -> public.tavoli
-    document.getElementById('btnCreateTable').addEventListener('click', async ()=>{
+    // Crea tavolo
+    $('#btnCreateTable').addEventListener('click', async ()=>{
       try{
         const name = $('#tNome').value.trim()
         const desc = $('#tDesc').value.trim()
@@ -289,7 +264,6 @@
       }catch(err){ console.error(err); alert('Errore creazione tavolo.') }
     })
 
-    // List from tavoli_view
     async function loadTables(){
       const q = ($('#search').value||'').trim()
       let query = supabase.from('tavoli_view').select('*').order('starts_at', { ascending: true })
@@ -337,7 +311,6 @@
       ])
     }
 
-    // Reservations
     async function reserveSeat(tableId){
       const { error } = await supabase.from('reservations').insert({ tavolo_id: tableId })
       if(error){ alert(error.message||'Errore prenotazione'); return }
@@ -348,8 +321,6 @@
       if(error){ alert('Errore annullamento'); return }
       loadTables(); loadReservations()
     }
-
-    // Delete table
     async function deleteTable(tableId){
       if(!confirm('Eliminare il tavolo? Questa azione rimuove anche le prenotazioni.')) return
       const { error } = await supabase.from('tavoli').delete().eq('id', tableId)
@@ -357,7 +328,6 @@
       loadTables(); loadReservations()
     }
 
-    // Admin edit
     async function adminEditTable(row){
       const name = prompt('Nome', row.name); if(name===null) return
       const description = prompt('Descrizione', row.description||''); if(description===null) return
@@ -380,7 +350,6 @@
       }
     }
 
-    // My reservations
     async function loadReservations(){
       const { data, error } = await supabase.from('my_reservations_view').select('*').order('starts_at',{ascending:true})
       if(error){ console.error(error); return }
@@ -400,7 +369,6 @@
       })
     }
 
-    // Users (admin)
     async function loadUsers(){
       const { data, error } = await supabase.from('profiles_admin_view').select('*').order('created_at',{ascending:false})
       if(error){ console.error(error); return }
@@ -427,8 +395,7 @@
       })
     }
 
-    // Search and boot
-    document.getElementById('search').addEventListener('input', ()=> loadTables())
+    $('#search').addEventListener('input', ()=> loadTables())
     ensureAuth()
   </script>
 </body>
