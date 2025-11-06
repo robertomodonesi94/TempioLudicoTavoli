@@ -5,132 +5,128 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tempio Ludico — Prenotazioni Tavoli</title>
 
-  <!-- Supabase SDK and your env -->
+  <!-- SDK + env -->
   <script type="module" src="https://esm.sh/@supabase/supabase-js@2"></script>
   <script src="/env.js"></script>
 
   <style>
-    :root{
-      --ink:#111827;--muted:#6b7280;--b:#e5e7eb;--card:#fff;--brand:#ed445b;
-      --bg:#fafafa;--ok:#16a34a;--warn:#f59e0b;--err:#dc2626
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    :root{--ink:#111827;--muted:#6b7280;--b:#e5e7eb;--card:#fff;--brand:#ed445b;--bg:#fafafa;--err:#dc2626}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
     header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--b);padding:12px 16px;z-index:10}
     h1{margin:0;font-size:20px}
     main{max-width:1100px;margin:18px auto;padding:0 16px 40px}
-    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
-    input[type="search"]{padding:8px 10px;border:1px solid var(--b);border-radius:10px;min-width:260px}
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
-    .card{background:var(--card);border:1px solid var(--b);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
-    .card h2{margin:0 0 2px 0;font-size:16px}
+    .card{background:var(--card);border:1px solid var(--b);border-radius:14px;padding:14px}
     .muted{color:var(--muted);font-size:12px}
-    .seat{display:grid;grid-template-columns:140px 1fr auto;gap:10px;align-items:center;border:1px solid var(--b);border-radius:10px;padding:8px 10px;background:#fff}
+    .seat{display:grid;grid-template-columns:140px 1fr auto;gap:10px;align-items:center;border:1px solid var(--b);border-radius:10px;padding:8px 10px;background:#fff;margin-top:8px}
     .pill{border:1px solid var(--b);border-radius:999px;padding:2px 8px;font-size:12px}
-    .status-pending{border-color:var(--warn)}
-    .status-confirmed{border-color:var(--ok)}
-    .status-cancelled{border-color:var(--err)}
-    .empty{padding:20px;border:1px dashed var(--b);border-radius:12px;text-align:center;color:var(--muted)}
-    .brand{color:var(--brand);font-weight:800}
-    .error{color:var(--err);font-weight:600}
+    .error{color:var(--err);white-space:pre-wrap}
+    pre{white-space:pre-wrap;background:#fff;border:1px solid var(--b);padding:10px;border-radius:10px;overflow:auto}
+    .toolbar{display:flex;gap:10px;align-items:center;margin:10px 0;flex-wrap:wrap}
+    input[type="search"]{padding:8px 10px;border:1px solid var(--b);border-radius:10px;min-width:260px}
   </style>
 </head>
 <body>
-  <header><h1>Prenotazioni Tavoli <span class="brand">Tempio Ludico</span></h1></header>
+  <header><h1>Prenotazioni Tavoli <span style="color:var(--brand);font-weight:800">Tempio Ludico</span></h1></header>
   <main>
-    <div class="controls">
-      <!-- Optional filter by tavolo via query param or dropdown populated from data -->
-      <input id="search" type="search" placeholder="Filtra per titolo tavolo o nome utente…" />
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Filtra per tavolo o utente…" />
+      <button id="btn-reload">Ricarica</button>
       <div id="meta" class="muted"></div>
     </div>
     <div id="content">Caricamento…</div>
+    <details open>
+      <summary>Debug</summary>
+      <div class="muted">Verifica chiavi e URL dal tuo <code>env.js</code></div>
+      <pre id="dbg-env"></pre>
+      <div class="muted">Ultima risposta Supabase</div>
+      <pre id="dbg-last"></pre>
+    </details>
   </main>
 
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // 1) Initialize client. env.js MUST define these. If not, you can hardcode (not recommended).
-    const URL = window.SUPABASE_URL;
-    const KEY = window.SUPABASE_ANON_KEY;
-    const supabase = createClient(URL, KEY, { auth: { persistSession: true } });
+    // --- environment check
+    const ENV = {
+      url:  window.SUPABASE_URL,
+      key:  window.SUPABASE_ANON_KEY,
+      view: 'v_tavolo_reservations' // change to 'tavolo_reservations' ONLY if you renamed it in SQL
+    };
+    document.getElementById('dbg-env').textContent = JSON.stringify({
+      url: ENV.url,
+      key_present: Boolean(ENV.key && ENV.key.length > 20),
+      view: ENV.view
+    }, null, 2);
 
-    // 2) Page wiring
-    const el = {
+    // Fail fast if env missing
+    if (!ENV.url || !ENV.key) {
+      document.getElementById('content').innerHTML =
+        '<div class="error">Manca SUPABASE_URL o SUPABASE_ANON_KEY in env.js</div>';
+      throw new Error('Missing env');
+    }
+
+    const supabase = createClient(ENV.url, ENV.key, { auth: { persistSession: true } });
+
+    const ui = {
       content: document.getElementById('content'),
-      search: document.getElementById('search'),
-      meta: document.getElementById('meta')
+      search:  document.getElementById('search'),
+      meta:    document.getElementById('meta'),
+      last:    document.getElementById('dbg-last'),
+      reload:  document.getElementById('btn-reload')
     };
 
-    // Optional: restrict to a single tavolo with ?tavolo_id=<uuid>
-    const params = new URLSearchParams(location.search);
-    const ONLY = params.get('tavolo_id') || '';
+    function fmtDate(s) { try { return s ? new Date(s).toLocaleString() : ''; } catch { return s || ''; } }
 
-    // 3) Data load
-    async function loadReservations() {
-      // Build query against the VIEW we created in the DB
+    async function fetchRows() {
+      // Query the VIEW; do NOT query base tables here
       let q = supabase
-        .from('v_tavolo_reservations')
-        .select('tavolo_id, tavolo_title, tavolo_starts_at, user_id, display_name, status, note, created_at');
-
-      if (ONLY) q = q.eq('tavolo_id', ONLY);
-
-      const { data, error } = await q
+        .from(ENV.view)
+        .select('tavolo_id, tavolo_title, tavolo_starts_at, user_id, display_name, status, created_at')
         .order('tavolo_id', { ascending: true })
         .order('created_at', { ascending: true });
 
-      if (error) {
-        el.content.innerHTML = `<div class="error">Errore caricamento: ${error.message || error}</div>`;
-        console.error('v_tavolo_reservations error', error);
-        return [];
-      }
-      return data ?? [];
-    }
-
-    // 4) Rendering
-    function fmtDate(s) {
-      if (!s) return '';
-      try { return new Date(s).toLocaleString(); } catch { return s; }
+      const { data, error, status } = await q;
+      ui.last.textContent = JSON.stringify({ status, error, rows: data?.length ?? 0, sample: data?.slice(0, 3) }, null, 2);
+      if (error) throw error;
+      return data || [];
     }
 
     function render(rows) {
-      // Filter by search text
-      const term = (el.search.value || '').toLowerCase().trim();
+      const term = (ui.search.value || '').toLowerCase().trim();
       const filtered = term
         ? rows.filter(r =>
             (r.tavolo_title || '').toLowerCase().includes(term) ||
             (r.display_name || '').toLowerCase().includes(term))
         : rows;
 
-      // Group by tavolo_id
+      // group by tavolo
       const byTable = new Map();
       for (const r of filtered) {
-        const key = r.tavolo_id;
-        if (!byTable.has(key)) byTable.set(key, { title: r.tavolo_title || `Tavolo ${key}`, when: r.tavolo_starts_at, rows: [] });
-        byTable.get(key).rows.push(r);
+        if (!byTable.has(r.tavolo_id)) {
+          byTable.set(r.tavolo_id, { title: r.tavolo_title || `Tavolo ${r.tavolo_id}`, when: r.tavolo_starts_at, rows: [] });
+        }
+        byTable.get(r.tavolo_id).rows.push(r);
       }
 
-      // Meta
-      el.meta.textContent = `${filtered.length} prenotazioni visibili${ONLY ? ` per tavolo ${ONLY}` : ''}`;
+      ui.meta.textContent = `${filtered.length} prenotazioni visibili`;
 
-      // Render
       if (byTable.size === 0) {
-        el.content.innerHTML = '<div class="empty">Nessuna prenotazione trovata.</div>';
+        ui.content.innerHTML = '<div class="card"><div class="muted">Nessuna prenotazione.</div></div>';
         return;
       }
-      el.content.innerHTML = '<div class="grid"></div>';
-      const grid = el.content.querySelector('.grid');
+
+      ui.content.innerHTML = '<div class="grid"></div>';
+      const grid = ui.content.querySelector('.grid');
 
       for (const [tid, group] of byTable) {
         const card = document.createElement('div');
         card.className = 'card';
         const when = group.when ? `<div class="muted">Inizio: ${fmtDate(group.when)}</div>` : '';
         card.innerHTML = `<h2>${group.title}</h2>${when}<div class="muted">Visibile a tutti gli utenti</div>`;
-
         for (const r of group.rows) {
-          const statusClass = r.status ? ` status-${String(r.status).toLowerCase()}` : '';
           const line = document.createElement('div');
-          line.className = 'seat' + statusClass;
+          line.className = 'seat';
           line.innerHTML = `
             <div>${fmtDate(r.created_at)}</div>
             <div>${r.display_name || '—'}</div>
@@ -141,26 +137,18 @@
       }
     }
 
-    // 5) Realtime re-fetch when reservations change (optional)
-    function subscribeRealtime() {
+    async function boot() {
       try {
-        supabase.channel('reservations_changes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, async () => {
-            const rows = await loadReservations();
-            render(rows);
-          })
-          .subscribe();
-      } catch (e) { console.warn('realtime subscribe failed', e); }
+        const rows = await fetchRows();  // any backend error will be printed in Debug
+        render(rows);
+      } catch (e) {
+        ui.content.innerHTML = `<div class="error">Errore: ${e.message || e}</div>`;
+        console.error(e);
+      }
     }
 
-    // 6) Boot
-    let cache = [];
-    async function boot() {
-      cache = await loadReservations();
-      render(cache);
-      subscribeRealtime();
-    }
-    el.search.addEventListener('input', () => render(cache));
+    ui.reload.addEventListener('click', boot);
+    ui.search.addEventListener('input', boot);
     boot();
   </script>
 </body>
