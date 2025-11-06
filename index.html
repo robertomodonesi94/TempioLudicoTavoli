@@ -5,740 +5,563 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tempio Ludico — Tavoli</title>
   <meta name="theme-color" content="#ed445b" />
+  <link rel="icon" href="LogoTempioLudicoNoBackground.PNG" />
   <style>
     :root{--bg:#ed445b;--ink:#0b0f14;--card:#fff;--muted:#5b6c85;--b:#e5e7eb;--b2:#d1d5db}
     *{box-sizing:border-box}
+    html,body{height:100%}
     body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto}
     .wrap{max-width:1100px;margin:0 auto;padding:20px}
     header{display:flex;justify-content:space-between;align-items:center;color:#fff;gap:10px;flex-wrap:wrap}
     h1{font-size:20px;margin:0}
     .badge{font-size:12px;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:2px 8px}
     .row{display:flex;gap:8px;flex-wrap:wrap}
-    .grid{display:grid;gap:14px}
-    .card{background:var(--card);border:1px solid var(--b);border-radius:12px;padding:14px}
-    .card h2{margin:0 0 8px 0;font-size:16px;color:var(--ink)}
-    label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
-    input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--b2);border-radius:8px}
-    textarea{min-height:88px;resize:vertical}
-    button{border:1px solid var(--b2);border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer;background:#f3f4f6}
-    .btn-accent{background:#ed445b;color:#fff;border-color:#d73c52}
-    .btn-danger{background:#fee2e2;color:#7f1d1d;border-color:#fecaca}
-    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff}
+    button{appearance:none;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer}
+    .btn{background:#111;color:#fff}
+    .btn:disabled{opacity:.45;cursor:not-allowed}
+    .btn-light{background:#fff;color:#111;border:1px solid var(--b)}
+    .btn-danger{background:#b91c1c;color:#fff}
+    .card{background:var(--card);border-radius:12px;padding:14px;border:1px solid var(--b)}
     .muted{color:var(--muted)}
-    .list{display:flex;flex-direction:column;gap:10px}
-    .item{border:1px solid var(--b);border-radius:10px;padding:12px;background:#fff}
-    .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
-    .thumb{width:100%;height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--b)}
-    .noimg{height:160px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--b2);border-radius:8px;color:#6b7280;background:#fafafa}
-    .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-    .tag{font-size:12px;border:1px solid var(--b2);border-radius:999px;padding:2px 8px;background:#f9fafb}
     .hidden{display:none}
-    .cols-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-    @media (max-width:700px){.cols-2{grid-template-columns:1fr}}
-    dialog{border:none;border-radius:12px;max-width:900px;width:92vw;padding:0;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    .dlg-head{padding:14px 16px;border-bottom:1px solid var(--b);font-weight:700;display:flex;justify-content:space-between;align-items:center}
-    .dlg-body{padding:12px 16px;max-height:65vh;overflow:auto}
-    .dlg-foot{padding:12px 16px;border-top:1px solid var(--b);display:flex;gap:8px;justify-content:flex-end}
-    .checklist{display:flex;flex-wrap:wrap;gap:8px}
-    .checklist label{display:flex;align-items:center;gap:6px;border:1px solid var(--b2);padding:6px 10px;border-radius:999px;background:#fff;font-size:12px;margin:0}
-    .table{width:100%;border-collapse:collapse}
-    .table th,.table td{padding:8px 10px;border-bottom:1px solid var(--b);text-align:left}
-    .table th{font-size:12px;color:#374151}
-    .table td{font-size:14px}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+    .col-12{grid-column:span 12}
+    .col-6{grid-column:span 12}@media(min-width:880px){.col-6{grid-column:span 6}}
+    .caps{letter-spacing:.04em;text-transform:uppercase;font-weight:700;font-size:12px}
+    .pill{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;background:#f4f4f5;border:1px solid #e4e4e7;font-size:12px}
+    table{border-collapse:collapse;width:100%}
+    th,td{border-bottom:1px solid var(--b2);padding:8px;text-align:left;font-size:14px;vertical-align:top}
+    dialog{border:0;border-radius:12px;max-width:620px;width:min(92vw,620px);padding:0}
+    dialog>form{padding:16px}
+    dialog::backdrop{background:rgba(0,0,0,.35)}
+    input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid var(--b2);font-size:14px}
+    textarea{min-height:80px;resize:vertical}
+    .chips{display:flex;gap:6px;flex-wrap:wrap}
+    .chip{border:1px solid var(--b2);padding:4px 8px;border-radius:999px;background:#fafafa;font-size:12px}
+    .kpi{display:flex;gap:10px;align-items:center}
+    .kpi .n{font-weight:800}
+    .table-card{display:grid;grid-template-columns: 1fr;gap:10px}
+    .table-act{display:flex;gap:8px;flex-wrap:wrap}
   </style>
+  <script src="./env.js"></script>
+  <script type="module" src="https://esm.sh/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <h1>Tempio Ludico — Tavoli</h1>
-      <div class="row" style="gap:6px;color:#fff;align-items:center">
-        <span class="badge">env:<span id="env-ok">…</span></span>
-        <span class="badge">sdk:<span id="sdk-ok">…</span></span>
-        <span class="badge">auth:<span id="auth-ok">…</span></span>
-        <button id="btn-login" type="button" class="btn-ghost">Login</button>
-        <button id="btn-logout" type="button" class="btn-ghost hidden">Logout</button>
-        <button id="btn-open-mine" type="button" class="btn-ghost hidden">Le mie prenotazioni</button>
-        <button id="btn-open-create" type="button" class="btn-ghost hidden">Crea tavolo</button>
+      <div class="row">
+        <img src="./LogoTempioLudicoNoBackground.PNG" alt="logo" width="44" height="44" style="border-radius:999px;background:#fff"/>
+        <h1>Tempio Ludico — Tavoli</h1>
+      </div>
+      <div class="row">
+        <span id="role" class="badge">Ruolo: —</span>
+        <span id="whoami" class="badge">Utente: —</span>
+        <button id="btn-login" class="btn-light">Accedi</button>
+        <button id="btn-logout" class="btn">Esci</button>
       </div>
     </header>
 
-    <section class="card" style="margin-top:12px">
-      <div style="display:flex;gap:8px;align-items:center">
-        <img src="LogoTempioLudicoNoBackground.PNG" width="44" height="44" alt="Logo" style="border-radius:50%;border:1px solid rgba(0,0,0,.1)" />
-        <div>
-          <div class="muted">Tempio Ludico</div>
-          <div id="status" class="muted">Pronto</div>
+    <!-- Auth card -->
+    <section id="auth" class="card">
+      <h2 class="caps">Accesso</h2>
+      <div class="grid">
+        <div class="col-6">
+          <div class="muted">Accedi con email e password</div>
+          <input id="login-email" type="email" placeholder="Email" />
+          <input id="login-password" type="password" placeholder="Password" style="margin-top:8px" />
+          <div class="row" style="margin-top:8px">
+            <button id="btn-email-login" class="btn">Accedi</button>
+          </div>
+          <div id="login-msg" class="muted" style="margin-top:6px"></div>
         </div>
-      </div>
-      <div id="auth-log" class="muted" style="margin-top:8px"></div>
-      <div class="row" style="margin-top:6px">
-        <div class="muted" id="whoami">Utente: —</div>
-        <div class="muted" id="role">Ruolo: —</div>
+        <div class="col-6">
+          <div class="muted">Non hai un account?</div>
+          <div class="row" style="margin-top:8px">
+            <button id="btn-open-signup" class="btn-light">Registrati</button>
+          </div>
+        </div>
       </div>
     </section>
 
-    <div id="app" class="hidden" aria-hidden="true">
-      <section class="card" style="margin-top:14px">
-        <div class="row" style="align-items:center">
-          <h2 style="flex:1">Elenco tavoli</h2>
-          <button id="btn-refresh" type="button">Aggiorna</button>
+    <!-- App card -->
+    <section id="app" class="card hidden">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div class="kpi"><span class="muted">Tavoli aperti:</span> <span id="kpi-count" class="n">0</span></div>
+        <div class="row">
+          <button id="btn-open-create" class="btn hidden">Crea tavolo</button>
+          <button id="btn-open-mine" class="btn-light hidden">Le mie prenotazioni</button>
         </div>
-        <div id="tables" class="list"></div>
-        <div id="tables-log" class="muted"></div>
-      </section>
-    </div>
+      </div>
+      <div id="tables-log" class="muted" style="margin-top:6px"></div>
+      <div id="tables" style="margin-top:10px"></div>
+    </section>
   </div>
 
-  <!-- LOGIN -->
-  <dialog id="login-dialog">
-    <div class="dlg-head">Accedi</div>
-    <div class="dlg-body">
-      <label>Email</label>
-      <input id="login-email" type="email" autocomplete="username" placeholder="nome@dominio.it" />
-      <label>Password</label>
-      <input id="login-password" type="password" autocomplete="current-password" />
-      <div class="row" style="align-items:center;margin-top:8px">
-        <button id="btn-do-login" type="button" class="btn-accent">Accedi</button>
-        <button id="btn-open-signup" type="button">Registrati</button>
-        <div id="login-msg" class="muted" style="margin-left:auto"></div>
-      </div>
-    </div>
-    <div class="dlg-foot">
-      <button id="login-cancel" type="button">Chiudi</button>
-    </div>
-  </dialog>
-
-  <!-- SIGNUP -->
+  <!-- Signup dialog -->
   <dialog id="signup-dialog">
-    <div class="dlg-head">Crea account</div>
-    <div class="dlg-body">
-      <label>Email</label>
-      <input id="signup-email" type="email" autocomplete="username" placeholder="nome@dominio.it" />
-      <label>Password</label>
-      <input id="signup-password" type="password" autocomplete="new-password" />
-      <div id="signup-msg" class="muted" style="margin-top:8px"></div>
-    </div>
-    <div class="dlg-foot">
-      <button id="signup-cancel" type="button">Annulla</button>
-      <button id="btn-do-signup" type="button" class="btn-accent">Registrati</button>
-    </div>
-  </dialog>
-
-  <!-- CREATE -->
-  <dialog id="create-dialog">
-    <div class="dlg-head">Crea tavolo</div>
-    <div class="dlg-body">
-      <section>
-        <label>Titolo</label>
-        <input id="title" placeholder="Nome del gioco o sessione" />
-        <label>Descrizione</label>
-        <textarea id="description" placeholder="Dettagli, regolamento, durata, requisiti..."></textarea>
-        <div class="cols-2">
-          <div>
-            <label>Data e ora</label>
-            <input id="starts_at" type="datetime-local" />
-          </div>
-          <div>
-            <label>Posti massimi</label>
-            <input id="max_seats" type="number" min="1" step="1" />
-          </div>
-        </div>
-        <div class="cols-2">
-          <div>
-            <label>Complessità</label>
-            <select id="complexity_label">
-              <option value="molto semplice">Molto semplice</option>
-	      <option value="semplice">Semplice</option>
-	      <option value="medio">Medio</option>
-	      <option value="complesso">Complesso</option>
-	      <option value="molto complesso">Molto complesso</option>
-            </select>
-          </div>
-          <div>
-            <label>Immagine URL</label>
-            <input id="image_url" placeholder="https://…" />
-          </div>
-        </div>
-        <label>Tag</label>
-        <div class="row" style="align-items:center">
-          <div id="tags-summary" class="tags" style="min-height:30px"></div>
-          <button id="btn-tags" type="button">Seleziona tag…</button>
-        </div>
-        <div id="create-log" class="muted" style="margin-top:8px"></div>
-      </section>
-    </div>
-    <div class="dlg-foot">
-      <button id="create-cancel" type="button">Chiudi</button>
-      <button id="btn-create" type="button" class="btn-accent">Crea</button>
-    </div>
-  </dialog>
-
-  <!-- EDIT -->
-  <dialog id="edit-dialog">
-    <div class="dlg-head">Modifica tavolo</div>
-    <div class="dlg-body">
-      <section>
-        <input id="edit_id" type="hidden" />
-        <label>Titolo</label>
-        <input id="edit_title" />
-        <label>Descrizione</label>
-        <textarea id="edit_description"></textarea>
-        <div class="cols-2">
-          <div>
-            <label>Data e ora</label>
-            <input id="edit_starts_at" type="datetime-local" />
-          </div>
-          <div>
-            <label>Posti massimi</label>
-            <input id="edit_max_seats" type="number" min="1" step="1" />
-          </div>
-        </div>
-        <div class="cols-2">
-          <div>
-            <label>Complessità</label>
-            <select id="edit_complexity_label">
-              <option value="molto semplice">Molto semplice</option>
-	      <option value="semplice">Semplice</option>
-	      <option value="medio">Medio</option>
-	      <option value="complesso">Complesso</option>
-	      <option value="molto complesso">Molto complesso</option>
-            </select>
-          </div>
-          <div>
-            <label>Immagine URL</label>
-            <input id="edit_image_url" placeholder="https://…" />
-          </div>
-        </div>
-        <label>Tag</label>
-        <div class="row" style="align-items:center">
-          <div id="tags-summary-edit" class="tags" style="min-height:30px"></div>
-          <button id="btn-tags-edit" type="button">Seleziona tag…</button>
-        </div>
-        <div id="edit-log" class="muted" style="margin-top:8px"></div>
-      </section>
-    </div>
-    <div class="dlg-foot">
-      <button id="edit-cancel" type="button">Chiudi</button>
-      <button id="btn-edit-save" type="button" class="btn-accent">Salva</button>
-    </div>
-  </dialog>
-
-  <!-- RESERVATIONS -->
-  <dialog id="mine-dialog">
-    <div class="dlg-head">
-      <span id="mine-title">Le mie prenotazioni</span>
-      <span id="mine-subtitle" class="muted" style="font-weight:400"></span>
-    </div>
-    <div class="dlg-body">
-      <div id="mine" class="list"></div>
-    </div>
-    <div class="dlg-foot">
-      <button id="mine-close" type="button">Chiudi</button>
-    </div>
-  </dialog>
-
-  <!-- TAG PICKER -->
-  <dialog id="tags-dialog">
-    <div class="dlg-head">Seleziona tag</div>
-    <div class="dlg-body">
-      <div id="tags-list" class="checklist"></div>
-      <div class="row" style="margin-top:8px">
-        <input id="new-tag" placeholder="Aggiungi nuovo tag" />
-        <button id="add-tag" type="button">Aggiungi</button>
+    <form method="dialog">
+      <h3>Registrazione</h3>
+      <input id="signup-email" type="email" placeholder="Email" />
+      <input id="signup-password" type="password" placeholder="Password" style="margin-top:8px" />
+      <div class="row" style="margin-top:10px">
+        <button id="btn-email-signup" class="btn">Crea account</button>
+        <button value="cancel" class="btn-light">Annulla</button>
       </div>
-    </div>
-    <div class="dlg-foot">
-      <button id="tags-cancel" type="button">Annulla</button>
-      <button id="tags-apply" type="button" class="btn-accent">Applica</button>
-    </div>
+      <div id="signup-msg" class="muted" style="margin-top:6px"></div>
+    </form>
   </dialog>
 
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="env.js"></script>
-  <script>
-    const $ = (id) => document.getElementById(id);
-    const fmt = (iso) => new Date(iso).toLocaleString('it-IT');
-    const toInputLocal = (iso) => {
-      if (!iso) return '';
-      const d = new Date(iso);
-      const pad = (n)=>String(n).padStart(2,'0');
-      return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
-    };
-    const parseFutureLocalDateTime = (v)=>{
-      if (!v) return { ok:false, error:'Data e ora obbligatorie' };
-      const d = new Date(v);
-      if (isNaN(d.getTime())) return { ok:false, error:'Data non valida' };
-      return { ok:true, value:d.toISOString() };
-    };
-    const log = (id, msg)=>{ const el=$(id); if (el) el.textContent = msg || ''; };
+  <!-- Create/Edit table dialog -->
+  <dialog id="table-dialog">
+    <form method="dialog">
+      <h3 id="table-dialog-title">Nuovo tavolo</h3>
+      <div class="grid">
+        <div class="col-6">
+          <label class="caps">Titolo</label>
+          <input id="t-title" type="text" placeholder="Nome del tavolo" />
+        </div>
+        <div class="col-6">
+          <label class="caps">Data e ora</label>
+          <input id="t-starts" type="datetime-local" />
+        </div>
+        <div class="col-6">
+          <label class="caps">Giocatori max</label>
+          <input id="t-max" type="number" min="1" step="1" />
+        </div>
+        <div class="col-6">
+          <label class="caps">Complessità</label>
+          <input id="t-complexity" type="text" placeholder="es. Family, Medium, Expert" />
+        </div>
+        <div class="col-12">
+          <label class="caps">Descrizione</label>
+          <textarea id="t-desc" placeholder="Dettagli"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="caps">Tag (separati da virgola)</label>
+          <input id="t-tags" type="text" placeholder="German, Cooperativo,..." />
+        </div>
+        <div class="col-12">
+          <label class="caps">Immagine (URL opzionale)</label>
+          <input id="t-image" type="url" placeholder="https://..." />
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="btn-save-table" class="btn">Salva</button>
+        <button value="cancel" class="btn-light">Annulla</button>
+      </div>
+      <div id="table-msg" class="muted" style="margin-top:6px"></div>
+    </form>
+  </dialog>
 
+  <!-- My reservations dialog -->
+  <dialog id="mine-dialog">
+    <form method="dialog">
+      <h3>Le mie prenotazioni</h3>
+      <div id="mine-list" class="muted">Caricamento…</div>
+      <div class="row" style="margin-top:12px">
+        <button value="cancel" class="btn">Chiudi</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module">
+    // Supabase client
+    const supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+    // State
+    let SESSION = null;
     let IS_ADMIN = false;
-    let AVAILABLE_TAGS = ['boardgame','gdr','wargame','skirmish','party','torneo'];
-    let SELECTED_TAGS = [];
-    let EDIT_TAGS = [];
-    let TAGS_TARGET = 'create';
+    let EDITING_TABLE_ID = null;
 
-    // Supabase
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Shortcuts
+    const $ = (id)=>document.getElementById(id);
+    const el = (qs,root=document)=>root.querySelector(qs);
+    const fmtErr = (e)=> e?.message || e?.error_description || String(e);
 
-    // Auth UI
+    // UI toggles
     function renderAuth(authed){
       $('btn-login').classList.toggle('hidden', authed);
       $('btn-logout').classList.toggle('hidden', !authed);
       $('btn-open-create').classList.toggle('hidden', !authed || !IS_ADMIN);
       $('btn-open-mine').classList.toggle('hidden', !authed);
       $('app').classList.toggle('hidden', !authed);
-      $('app').setAttribute('aria-hidden', String(!authed));
-      $('auth-ok').textContent = authed ? 'on' : 'off';
+      $('auth').classList.toggle('hidden', authed);
     }
 
-    // Tags UI
-    function renderTagsSummary(){
-      const host = $('tags-summary'); if (!host) return;
-      host.innerHTML = '';
-      const arr = SELECTED_TAGS;
-      if (!arr.length){ const s=document.createElement('span'); s.className='muted'; s.textContent='Nessun tag selezionato'; host.appendChild(s); return; }
-      for (const t of arr){ const chip=document.createElement('span'); chip.className='tag'; chip.textContent=t; host.appendChild(chip); }
-    }
-    function renderTagsSummaryEdit(){
-      const host = $('tags-summary-edit'); if (!host) return;
-      host.innerHTML = '';
-      const arr = EDIT_TAGS;
-      if (!arr.length){ const s=document.createElement('span'); s.className='muted'; s.textContent='Nessun tag selezionato'; host.appendChild(s); return; }
-      for (const t of arr){ const chip=document.createElement('span'); chip.className='tag'; chip.textContent=t; host.appendChild(chip); }
-    }
-    function openTagsDialog(){
-      const list = $('tags-list'); list.innerHTML='';
-      const source = TAGS_TARGET==='edit' ? EDIT_TAGS : SELECTED_TAGS;
-      for (const t of AVAILABLE_TAGS){
-        const id = 'tag_' + t.replace(/\W+/g,'_');
-        const label = document.createElement('label');
-        const checked = source.includes(t) ? 'checked' : '';
-        label.innerHTML = `<input type="checkbox" id="${id}" value="${t}" ${checked}><span>${t}</span>`;
-        list.appendChild(label);
-      }
-      $('tags-dialog').showModal();
-    }
-    function cancelTagsDialog(){ $('tags-dialog').close(); }
-    function applyTagsDialog(){
-      const source = TAGS_TARGET==='edit' ? EDIT_TAGS : SELECTED_TAGS;
-      const inputs = [...document.querySelectorAll('#tags-list input[type="checkbox"]')];
-      const picked = inputs.filter(i=>i.checked).map(i=>i.value);
-      source.splice(0, source.length, ...picked);
-      if (TAGS_TARGET==='edit') renderTagsSummaryEdit(); else renderTagsSummary();
-      $('tags-dialog').close();
+    function setWho(role, user){
+      $('role').textContent = 'Ruolo: ' + (IS_ADMIN ? 'admin' : role || 'user');
+      $('whoami').textContent = 'Utente: ' + (user?.email || user?.id || '—');
     }
 
-    // Data helpers
-    async function fetchTavoli(){
+    // Ensure a profile row exists and load is_admin
+    async function ensureProfileAndRole(){
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user){ IS_ADMIN=false; setWho('—', null); return; }
+
+      const username = user.email?.split('@')[0] || null;
+
+      // Upsert id and username only. Do not touch is_admin here.
+      const up = await supabase
+        .from('profiles')
+        .upsert({ id: user.id, username }, { onConflict: 'id', ignoreDuplicates: false })
+        .select('id,is_admin')
+        .maybeSingle();
+
+      if (up.error && up.error.code !== '23505') console.warn('[profiles upsert]', up.error);
+
       const { data, error } = await supabase
-        .from('tavoli')
-        .select('id,title,description,starts_at,max_seats,complexity_label,image_url,created_at,creator_id,tags')
-        .order('created_at',{ascending:false})
-        .limit(200);
-      if (error) throw error;
-      return data || [];
-    }
-    async function fetchReservationCounts(){
-      const { data, error } = await supabase.from('reservations').select('tavolo_id');
-      if (error) throw error;
-      const m = new Map();
-      for (const r of (data || [])) m.set(r.tavolo_id, (m.get(r.tavolo_id) || 0) + 1);
-      return m;
-    }
-    async function fetchCreatorsUsernames(ids){
-      if (!ids.length) return new Map();
-      const { data, error } = await supabase.from('profiles').select('id,username').in('id', ids);
-      if (error) return new Map();
-      const m = new Map();
-      for (const r of data || []) m.set(r.id, r.username || null);
-      return m;
-    }
-    async function listTavoliWithExtras(){
-      const { data: userObj } = await supabase.auth.getUser();
-      const me = userObj?.user?.id || null;
-      const [rows, counts] = await Promise.all([fetchTavoli(), fetchReservationCounts()]);
-      const creatorIds = [...new Set(rows.map(r=>r.creator_id).filter(Boolean))];
-      const usernames = await fetchCreatorsUsernames(creatorIds);
-      for (const r of rows){
-        r.seats_taken = counts.get(r.id) || 0;
-        r.me_reserved = false;
-      }
-      if (me){
-        const { data: myRes } = await supabase.from('reservations').select('tavolo_id').eq('user_id', me);
-        const set = new Set((myRes || []).map(x=>x.tavolo_id));
-        for (const r of rows) r.me_reserved = set.has(r.id);
-      }
-      return { rows, usernames };
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      IS_ADMIN = !error && !!data?.is_admin;
+      setWho(IS_ADMIN ? 'admin' : 'user', user);
+      $('btn-open-create').classList.toggle('hidden', !IS_ADMIN);
     }
 
-    // Cards
-    function tavoloCard(t, usernames){
-      const el = document.createElement('div');
-      el.className='item';
-      const hasImg = t.image_url && /^https?:\/\//.test(t.image_url);
-      el.innerHTML = `
-        <div class="grid" style="grid-template-columns:120px 1fr;gap:12px">
-          <div>${hasImg ? `<img class="thumb" src="${t.image_url}" alt="">` : `<div class="noimg">Nessuna immagine</div>`}</div>
-          <div>
-            <h3 style="margin:0">${t.title}</h3>
-            <div class="meta">
-              <span>${fmt(t.starts_at)}</span>
-              <span>Posti: ${t.seats_taken}/${t.max_seats}</span>
-              <span>Diff.: ${t.complexity_label||'medio'}</span>
-              <span>Creato da: ${usernames.get(t.creator_id) || t.creator_id || '—'}</span>
+    // ---------- Tables and reservations ----------
+
+    // Get all tables, then attach reservations and counts
+    async function fetchTablesWithReservations(){
+      const { data: tables, error } = await supabase
+        .from('tavoli')
+        .select('id,title,description,starts_at,max_seats,tags,image_url,creator_id,created_at,complexity_label')
+        .order('starts_at', { ascending: true });
+      if (error) throw error;
+
+      if (!tables?.length) return [];
+
+      const ids = tables.map(t=>t.id);
+      const { data: resv, error: rerr } = await supabase
+        .from('reservations')
+        .select('id,tavolo_id,user_id,username_snapshot,created_at')
+        .in('tavolo_id', ids);
+      if (rerr) throw rerr;
+
+      const byTable = new Map();
+      for (const t of tables){ byTable.set(t.id, { table: t, reservations: [] }); }
+      for (const r of resv){ byTable.get(r.tavolo_id)?.reservations.push(r); }
+
+      return Array.from(byTable.values()).map(({table,reservations})=>{
+        const taken = reservations.length;
+        const max = table.max_seats ?? 0;
+        return { table, reservations, taken, available: Math.max(0, max - taken) };
+      });
+    }
+
+    function reservationRow(r, me){
+      const meFlag = r.user_id === me?.id ? ' <span class="pill">tu</span>' : '';
+      return `<div>${r.username_snapshot || r.user_id}${meFlag}</div>`;
+    }
+
+    function tableCard(model, me){
+      const { table: t, reservations, taken, available } = model;
+      const when = t.starts_at ? new Date(t.starts_at).toLocaleString() : '';
+      const tagsHtml = (t.tags||[]).map(x=>`<span class="chip">${x}</span>`).join('');
+      const iAmBooked = reservations.some(r=>r.user_id === me?.id);
+
+      const host = document.createElement('div');
+      host.className = 'card';
+      host.innerHTML = `
+        <div class="table-card">
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:800">${t.title || 'Senza titolo'}</div>
+              <div class="muted">${when}${t.complexity_label ? ' · ' + t.complexity_label : ''}</div>
             </div>
-            <p class="muted" style="margin:8px 0 0 0">${t.description||''}</p>
-            <div class="tags">${(t.tags||[]).map(x=>`<span class="tag">${x}</span>`).join('')}</div>
-            <div class="row" style="margin-top:10px">
-              <button class="btn-accent" data-act="reserve" ${t.seats_taken>=t.max_seats?'disabled':''}>Prenota</button>
-              <button class="btn-danger" data-act="cancel" ${t.me_reserved?'':'disabled'}>Cancella</button>
-              <button data-act="edit" ${IS_ADMIN?'':'disabled'}>Modifica</button>
-              <button data-act="delete" class="btn-danger" ${IS_ADMIN?'':'disabled'}>Elimina</button>
+            <div class="kpi">
+              <span class="pill">Posti ${taken}/${t.max_seats ?? 0}</span>
+              ${available <= 0 ? '<span class="pill">Completo</span>' : ''}
             </div>
           </div>
-        </div>`;
-      el.querySelector('[data-act="reserve"]').addEventListener('click', async (ev)=>{
-        ev.preventDefault();
-        const { error } = await supabase.from('reservations').insert({ tavolo_id: t.id });
-        if (error) return alert('Errore prenotazione: ' + friendlyError(error));
-        await loadTavoli();
-      });
-      el.querySelector('[data-act="cancel"]').addEventListener('click', async (ev)=>{
-        ev.preventDefault();
-        const { error } = await supabase.from('reservations').delete().eq('tavolo_id', t.id);
-        if (error) return alert('Errore cancellazione: ' + friendlyError(error));
-        await loadTavoli();
-      });
-      el.querySelector('[data-act="edit"]').addEventListener('click', (ev)=>{ ev.preventDefault(); openEdit(t); });
-      el.querySelector('[data-act="delete"]').addEventListener('click', async (ev)=>{
-        ev.preventDefault();
-        if (!confirm('Eliminare questo tavolo?')) return;
-        const { error } = await supabase.from('tavoli').delete().eq('id', t.id);
-        if (error) return alert('Errore eliminazione: ' + friendlyError(error));
-        await loadTavoli();
-      });
-      return el;
+
+          ${t.description ? `<div>${t.description}</div>` : ''}
+
+          ${(t.tags && t.tags.length) ? `<div class="chips">${tagsHtml}</div>` : ''}
+
+          <div>
+            <div class="caps" style="margin-bottom:6px">Prenotati</div>
+            <div>${reservations.map(r=>reservationRow(r, me)).join('') || '<span class="muted">Nessuno</span>'}</div>
+          </div>
+
+          <div class="table-act">
+            <button class="btn ${iAmBooked ? '' : 'hidden'}" data-action="unreserve" data-id="${t.id}">Annulla prenotazione</button>
+            <button class="btn ${(!iAmBooked && available>0) ? '' : 'hidden'}" data-action="reserve" data-id="${t.id}">Prenota posto</button>
+            ${IS_ADMIN ? `<button class="btn-light" data-action="edit" data-id="${t.id}">Modifica</button>` : ''}
+            ${(IS_ADMIN || t.creator_id === SESSION?.user?.id) ? `<button class="btn-danger" data-action="delete" data-id="${t.id}">Elimina tavolo</button>` : ''}
+          </div>
+        </div>
+      `;
+      return host;
     }
 
-    function friendlyError(error){
-      if (!error) return 'errore sconosciuto';
-      const p = [];
-      if (error.message) p.push(error.message);
-      if (error.details) p.push(error.details);
-      if (error.hint) p.push(error.hint);
-      return p.join(' — ');
-    }
-
-    // List
-    async function loadTavoli(){
-      log('tables-log','Caricamento…');
+    async function renderTables(){
+      $('tables-log').textContent = 'Caricamento…';
       const host = $('tables'); host.innerHTML='';
       try{
-        const { rows, usernames } = await listTavoliWithExtras();
-        if (!rows.length){ host.innerHTML = '<div class="muted">Nessun tavolo</div>'; }
+        const list = await fetchTablesWithReservations();
+        $('kpi-count').textContent = list.length;
+        if (!list.length){ host.innerHTML = '<div class="muted">Nessun tavolo</div>'; }
         else {
+          const { data: { user } } = await supabase.auth.getUser();
           const frag = document.createDocumentFragment();
-          for (const r of rows) frag.appendChild(tavoloCard(r, usernames));
+          for (const m of list) frag.appendChild(tableCard(m, user));
           host.appendChild(frag);
+
+          // Wire table actions
+          host.querySelectorAll('[data-action]').forEach(btn=>{
+            const id = btn.getAttribute('data-id');
+            const action = btn.getAttribute('data-action');
+            btn.onclick = ()=> handleTableAction(action, id);
+          });
         }
-        log('tables-log','');
+        $('tables-log').textContent = '';
       }catch(err){
-        log('tables-log','Errore: ' + friendlyError(err));
+        $('tables-log').textContent = 'Errore: ' + fmtErr(err);
       }
     }
 
-    // Reservations
-    async function loadMine(){
-      const host = $('mine'); host.innerHTML='';
-      const titleEl = $('mine-title');
-      const subtitleEl = $('mine-subtitle');
-
-      const { data: userObj } = await supabase.auth.getUser();
-      const me = userObj?.user?.id || null;
-
-      let resQuery = supabase
-        .from('reservations')
-        .select('id,tavolo_id,user_id,created_at')
-        .order('created_at',{ascending:false});
-      if (!IS_ADMIN && me) resQuery = resQuery.eq('user_id', me);
-
+    async function handleTableAction(action, id){
       try{
-        const { data: reservations, error } = await resQuery;
-        if (error) throw error;
-
-        if (IS_ADMIN){
-          titleEl.textContent = 'Prenotazioni (admin)';
-        } else {
-          titleEl.textContent = 'Le mie prenotazioni';
-        }
-        subtitleEl.textContent = reservations?.length ? `${reservations.length} record` : '';
-
-        if (!reservations?.length){
-          host.innerHTML = '<div class="muted">Nessuna prenotazione</div>';
+        if (action === 'reserve'){
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error('Login richiesto');
+          // Avoid duplicate reservation
+          const existing = await supabase.from('reservations')
+            .select('id').eq('tavolo_id', id).eq('user_id', user.id).maybeSingle();
+          if (!existing.error && existing.data){ /* already reserved */ }
+          else {
+            // snapshot username
+            const prof = await supabase.from('profiles').select('username').eq('id', user.id).maybeSingle();
+            const username_snapshot = prof.data?.username || user.email || user.id;
+            const ins = await supabase.from('reservations')
+              .insert({ tavolo_id: id, user_id: user.id, username_snapshot })
+              .select('id')
+              .maybeSingle();
+            if (ins.error) throw ins.error;
+          }
+          await renderTables();
           return;
         }
+        if (action === 'unreserve'){
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error('Login richiesto');
+          const del = await supabase.from('reservations')
+            .delete().eq('tavolo_id', id).eq('user_id', user.id);
+          if (del.error) throw del.error;
+          await renderTables();
+          return;
+        }
+        if (action === 'delete'){
+          if (!IS_ADMIN){ throw new Error('Solo admin'); }
+          const del = await supabase.from('reservations').delete().eq('tavolo_id', id);
+          if (del.error) throw del.error;
+          const delT = await supabase.from('tavoli').delete().eq('id', id);
+          if (delT.error) throw delT.error;
+          await renderTables();
+          return;
+        }
+        if (action === 'edit'){
+          if (!IS_ADMIN){ throw new Error('Solo admin'); }
+          // Load table for editing
+          const q = await supabase.from('tavoli').select('*').eq('id', id).maybeSingle();
+          if (q.error) throw q.error;
+          EDITING_TABLE_ID = q.data.id;
+          $('table-dialog-title').textContent = 'Modifica tavolo';
+          $('t-title').value = q.data.title || '';
+          $('t-starts').value = q.data.starts_at ? toLocalInput(q.data.starts_at) : '';
+          $('t-max').value = q.data.max_seats ?? '';
+          $('t-complexity').value = q.data.complexity_label || '';
+          $('t-desc').value = q.data.description || '';
+          $('t-tags').value = (q.data.tags||[]).join(', ');
+          $('t-image').value = q.data.image_url || '';
+          $('table-msg').textContent = '';
+          $('table-dialog').showModal();
+          return;
+        }
+      }catch(err){
+        alert('Errore: ' + fmtErr(err));
+      }
+    }
 
-        const tavoloIds = [...new Set(reservations.map(r=>r.tavolo_id))];
-        const userIds = [...new Set(reservations.map(r=>r.user_id))];
+    // ---------- Create/Edit table ----------
+    function toLocalInput(ts){
+      // Convert ISO to yyyy-MM-ddThh:mm for input
+      const d = new Date(ts);
+      const pad = (n)=>String(n).padStart(2,'0');
+      const v = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      return v;
+    }
 
-        const [tavoliRes, profilesRes] = await Promise.all([
-          supabase.from('tavoli').select('id,title,starts_at').in('id', tavoloIds),
-          supabase.from('profiles').select('id,username').in('id', userIds)
-        ]);
+    $('btn-save-table').onclick = async (e)=>{
+      e.preventDefault();
+      $('table-msg').textContent = '';
+      try{
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Login richiesto');
+        if (!IS_ADMIN) throw new Error('Solo admin');
 
-        const tMap = new Map((tavoliRes.data||[]).map(t=>[t.id, t]));
-        const uMap = new Map((profilesRes.data||[]).map(u=>[u.id, u.username || u.id]));
+        const title = $('t-title').value.trim();
+        const starts = $('t-starts').value ? new Date($('t-starts').value).toISOString() : null;
+        const max = Number.parseInt($('t-max').value || '0', 10) || null;
+        const complexity = $('t-complexity').value.trim() || null;
+        const description = $('t-desc').value.trim() || null;
+        const tags = $('t-tags').value.split(',').map(s=>s.trim()).filter(Boolean);
+        const image_url = $('t-image').value.trim() || null;
 
-        const table = document.createElement('table');
-        table.className = 'table';
-        table.innerHTML = `
-          <thead>
-            <tr>
-              <th style="width:26%">Tavolo</th>
-              <th style="width:22%">Data tavolo</th>
-              <th style="width:22%">Prenotato il</th>
-              <th style="width:22%">Utente</th>
-              <th style="width:8%"></th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        `;
-        const tbody = table.querySelector('tbody');
+        if (!title) throw new Error('Titolo obbligatorio');
 
-        for (const r of reservations){
-          const t = tMap.get(r.tavolo_id);
-          const tr = document.createElement('tr');
-          const canDelete = IS_ADMIN || r.user_id === me;
-          tr.innerHTML = `
-            <td>${t ? t.title : r.tavolo_id}</td>
-            <td>${t ? fmt(t.starts_at) : '—'}</td>
-            <td>${fmt(r.created_at)}</td>
-            <td>${uMap.get(r.user_id) || r.user_id}</td>
-            <td>
-              <button class="btn-danger" data-id="${r.id}" ${canDelete?'':'disabled'}>Elimina</button>
-            </td>
-          `;
-          tr.querySelector('button')?.addEventListener('click', async (ev)=>{
-            ev.preventDefault();
-            if (!confirm('Eliminare questa prenotazione?')) return;
-            const { error: delErr } = await supabase.from('reservations').delete().eq('id', r.id);
-            if (delErr) return alert('Errore eliminazione: ' + friendlyError(delErr));
-            await loadMine();
-            await loadTavoli();
-          });
-          tbody.appendChild(tr);
+        const payload = {
+          title, starts_at: starts, max_seats: max, complexity_label: complexity,
+          description, tags: tags.length ? tags : null, image_url,
+          creator_id: user.id
+        };
+
+        if (EDITING_TABLE_ID){
+          const upd = await supabase.from('tavoli').update(payload).eq('id', EDITING_TABLE_ID);
+          if (upd.error) throw upd.error;
+        } else {
+          const ins = await supabase.from('tavoli').insert(payload);
+          if (ins.error) throw ins.error;
         }
 
-        host.innerHTML = '';
-        host.appendChild(table);
+        $('table-dialog').close();
+        EDITING_TABLE_ID = null;
+        $('t-title').value = '';
+        $('t-starts').value = '';
+        $('t-max').value = '';
+        $('t-complexity').value = '';
+        $('t-desc').value = '';
+        $('t-tags').value = '';
+        $('t-image').value = '';
+        await renderTables();
       }catch(err){
-        host.innerHTML = '<div class="muted">Errore: '+friendlyError(err)+'</div>';
+        $('table-msg').textContent = fmtErr(err);
       }
-    }
+    };
 
-    // Create
-    async function createTavolo(){
-      if (!IS_ADMIN) return log('create-log','Non autorizzato');
-
-      // user id per creator_id
+    // ---------- My reservations ----------
+    $('btn-open-mine').onclick = async ()=>{
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user){ return log('create-log','Sessione non valida'); }
+      if (!user){ alert('Login richiesto'); return; }
+      $('mine-list').textContent = 'Caricamento…';
+      $('mine-dialog').showModal();
 
-      const title = $('title').value.trim();
-      const description = $('description').value.trim();
-      const seats = Number($('max_seats').value);
-      const complexity_label = $('complexity_label').value;
-      const starts_raw = $('starts_at').value;
-      const dt = parseFutureLocalDateTime(starts_raw);
-      const image_url = $('image_url').value.trim();
+      const q = await supabase
+        .from('reservations')
+        .select('id,created_at,tavolo_id,username_snapshot,tavoli:title=tavolo_id ( id, title, starts_at )')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-      // Validazioni semplici
-      if (!title) return log('create-log','Titolo obbligatorio');
-      if (!description) return log('create-log','Descrizione obbligatoria');
-      if (!dt.ok) return log('create-log', dt.error);
-      if (!Number.isInteger(seats) || seats < 1) return log('create-log','Posti deve essere un intero ≥ 1');
+      if (q.error){ $('mine-list').textContent = fmtErr(q.error); return; }
 
-      // Preparo payload coerente con schema
-      const payload = {
-        title,
-        description,
-        max_seats: seats,
-        complexity_label,               // assicurati che corrisponda all’enum del DB
-        starts_at: dt.value,            // ISO 8601
-        image_url: image_url || null,   // evita stringhe vuote
-        creator_id: user.id,            // FIX principale
-        tags: (SELECTED_TAGS && SELECTED_TAGS.length) ? SELECTED_TAGS.slice() : null
-      };
+      if (!q.data?.length){ $('mine-list').innerHTML = '<span class="muted">Nessuna prenotazione</span>'; return; }
 
-      const { error } = await supabase.from('tavoli').insert(payload);
-      if (error){
-        // Mostra tutti i dettagli di PostgREST
-        return log('create-log', 'Errore: ' + friendlyError(error));
-      }
+      const rows = q.data.map(r=>{
+        const when = r.tavoli?.starts_at ? new Date(r.tavoli.starts_at).toLocaleString() : '';
+        return `<div class="card" style="margin-bottom:8px">
+                  <div style="font-weight:700">${r.tavoli?.title || r.tavolo_id}</div>
+                  <div class="muted">${when}</div>
+                  <div class="row" style="margin-top:8px">
+                    <button class="btn" data-cancel="${r.tavolo_id}">Annulla prenotazione</button>
+                  </div>
+                </div>`;
+      }).join('');
+      $('mine-list').innerHTML = rows;
 
-      // Reset form
-      $('create-dialog').close();
-      $('title').value=''; $('description').value=''; $('starts_at').value=''; $('max_seats').value=''; $('image_url').value='';
-      SELECTED_TAGS=[]; renderTagsSummary();
-      await loadTavoli();
-    }
+      $('mine-list').querySelectorAll('[data-cancel]').forEach(b=>{
+        b.onclick = async ()=>{
+          const id = b.getAttribute('data-cancel');
+          const del = await supabase.from('reservations').delete().eq('tavolo_id', id).eq('user_id', user.id);
+          if (del.error){ alert(fmtErr(del.error)); return; }
+          await renderTables();
+          $('mine-dialog').close();
+        };
+      });
+    };
 
-    // Edit
-    function openEdit(t){
-      $('edit_id').value = t.id;
-      $('edit_title').value = t.title || '';
-      $('edit_description').value = t.description || '';
-      $('edit_max_seats').value = t.max_seats ?? '';
-      $('edit_complexity_label').value = t.complexity_label || 'medio';
-      $('edit_image_url').value = t.image_url || '';
-      $('edit_starts_at').value = toInputLocal(t.starts_at);
-      EDIT_TAGS = Array.isArray(t.tags) ? [...t.tags] : [];
-      renderTagsSummaryEdit();
-      $('edit-dialog').showModal();
-    }
-    async function saveEdit(){
-      if (!IS_ADMIN) return log('edit-log','Non autorizzato');
-      const id = $('edit_id').value;
-      const title = $('edit_title').value.trim();
-      const description = $('edit_description').value.trim();
-      const seats = Number($('edit_max_seats').value);
-      const complexity_label = $('edit_complexity_label').value;
-      const starts_raw = $('edit_starts_at').value;
-      const dt = parseFutureLocalDateTime(starts_raw);
-      const image_url = $('edit_image_url').value.trim();
-
-      if (!title) return log('edit-log','Titolo obbligatorio');
-      if (!description) return log('edit-log','Descrizione obbligatoria');
-      if (!dt.ok) return log('edit-log', dt.error);
-      if (!Number.isInteger(seats) || seats < 1) return log('edit-log','Posti deve essere un intero ≥ 1');
-
-      const payload = {
-        title,
-        description,
-        max_seats: seats,
-        complexity_label,
-        starts_at: dt.value,
-        image_url: image_url || null,
-        tags: (EDIT_TAGS && EDIT_TAGS.length) ? EDIT_TAGS.slice() : null
-      };
-      const { error } = await supabase.from('tavoli').update(payload).eq('id', id);
-      if (error) return log('edit-log','Errore: ' + friendlyError(error));
-      $('edit-dialog').close();
-      await loadTavoli();
-    }
-
-    // Role and session
-    async function loadRole(){
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user){ IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
-      await supabase.from('profiles').upsert({ id: user.id }, { onConflict: 'id' }).select().maybeSingle();
-      const { data, error } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-      const role = (!error && data?.role) ? data.role : 'user';
-      IS_ADMIN = role === 'admin';
-      $('role').textContent = 'Ruolo: ' + role;
-      renderAuth(true);
-    }
-
-    // Email/password auth
+    // ---------- Auth ----------
     async function doPasswordLogin(){
       const email = $('login-email').value.trim();
       const password = $('login-password').value;
-      log('login-msg','');
-      if (!email || !password){ log('login-msg','Email e password sono obbligatorie'); return; }
+      $('login-msg').textContent = '';
+      if (!email || !password){ $('login-msg').textContent = 'Email e password sono obbligatorie'; return; }
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error){ log('login-msg', friendlyError(error)); return; }
-      $('login-dialog').close();
-      $('whoami').textContent = 'Utente: ' + (data.user?.email || data.user?.id || '');
-      await loadRole();
-      await Promise.all([loadTavoli(), loadMine()]);
+      if (error){ $('login-msg').textContent = fmtErr(error); return; }
+      SESSION = { user: data.user };
+      await ensureProfileAndRole();
+      renderAuth(true);
+      await renderTables();
     }
+
     async function doPasswordSignup(){
       const email = $('signup-email').value.trim();
       const password = $('signup-password').value;
-      log('signup-msg','');
-      if (!email || !password){ log('signup-msg','Email e password sono obbligatorie'); return; }
+      $('signup-msg').textContent = '';
+      if (!email || !password){ $('signup-msg').textContent = 'Email e password sono obbligatorie'; return; }
       const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error){ log('signup-msg', friendlyError(error)); return; }
-      if (!data.user){ log('signup-msg','Registrazione eseguita. Controlla l’email per la conferma.'); return; }
+      if (error){ $('signup-msg').textContent = fmtErr(error); return; }
+      if (!data.user){ $('signup-msg').textContent = 'Registrazione eseguita. Controlla l’email per la conferma.'; return; }
       $('signup-dialog').close();
-      $('whoami').textContent = 'Utente: ' + (data.user.email || data.user.id);
-      await loadRole();
-      await Promise.all([loadTavoli(), loadMine()]);
+      SESSION = { user: data.user };
+      await ensureProfileAndRole();
+      renderAuth(true);
+      await renderTables();
     }
 
-    // Reset UI
     function resetUI(){
+      SESSION = null;
+      IS_ADMIN = false;
       $('whoami').textContent = 'Utente: —';
-      log('tables-log',''); log('auth-log',''); log('create-log',''); log('edit-log',''); log('login-msg',''); log('signup-msg','');
-      SELECTED_TAGS=[]; EDIT_TAGS=[]; renderTagsSummary(); renderTagsSummaryEdit();
-      IS_ADMIN=false;
+      $('role').textContent = 'Ruolo: —';
       renderAuth(false);
+      $('tables').innerHTML = '';
+      $('tables-log').textContent = '';
     }
 
-    // Bind
-    function bind(){
-      const map = new Map([
-        ['btn-login',         ()=>{ $('login-dialog').showModal(); }],
-        ['login-cancel',      ()=>{ $('login-dialog').close(); }],
-        ['btn-do-login',      doPasswordLogin],
-        ['btn-open-signup',   ()=>{ $('login-dialog').close(); $('signup-dialog').showModal(); }],
-        ['signup-cancel',     ()=>{ $('signup-dialog').close(); }],
-        ['btn-do-signup',     doPasswordSignup],
-        ['btn-logout',        async ()=>{ await supabase.auth.signOut(); }],
-        ['btn-open-create',   ()=>{ $('create-dialog').showModal(); }],
-        ['create-cancel',     ()=>{ $('create-dialog').close(); }],
-        ['btn-create',        createTavolo],
-        ['btn-refresh',       loadTavoli],
-        ['btn-open-mine',     async ()=>{ await loadMine(); $('mine-dialog').showModal(); }],
-        ['mine-close',        ()=>{ $('mine-dialog').close(); }],
-        ['btn-tags',          ()=>{ TAGS_TARGET='create'; openTagsDialog(); }],
-        ['btn-tags-edit',     ()=>{ TAGS_TARGET='edit'; openTagsDialog(); }],
-        ['tags-apply',        applyTagsDialog],
-        ['tags-cancel',       cancelTagsDialog],
-        ['btn-edit-save',     saveEdit],
-        ['edit-cancel',       ()=>{ $('edit-dialog').close(); }],
-      ]);
-      for (const [id,fn] of map){
-        const el=$(id); if (!el) continue;
-        el.onclick = null;
-        el.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fn(); }catch(err){ console.error(id, err); } });
-      }
-      for (const dlgId of ['create-dialog','mine-dialog','tags-dialog','edit-dialog','login-dialog','signup-dialog']){
-        const dlg = $(dlgId);
-        dlg?.addEventListener('click', function onClick(e){
-          const rect = dlg.getBoundingClientRect();
-          const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
-          if (!inside) dlg.close();
-        });
-      }
-      $('login-password')?.addEventListener('keydown', (e)=>{ if (e.key==='Enter') doPasswordLogin(); });
-      $('signup-password')?.addEventListener('keydown', (e)=>{ if (e.key==='Enter') doPasswordSignup(); });
-    }
+    // Wire
+    $('btn-login').onclick = ()=> $('login-email').focus();
+    $('btn-logout').onclick = async ()=>{
+      await supabase.auth.signOut();
+      resetUI();
+    };
+    $('btn-open-signup').onclick = ()=> $('signup-dialog').showModal();
+    $('btn-email-signup').onclick = (e)=>{ e.preventDefault(); doPasswordSignup(); };
+    $('btn-email-login').onclick = (e)=>{ e.preventDefault(); doPasswordLogin(); };
+    $('btn-open-create').onclick = ()=>{
+      EDITING_TABLE_ID = null;
+      $('table-dialog-title').textContent = 'Nuovo tavolo';
+      $('t-title').value = '';
+      $('t-starts').value = '';
+      $('t-max').value = '';
+      $('t-complexity').value = '';
+      $('t-desc').value = '';
+      $('t-tags').value = '';
+      $('t-image').value = '';
+      $('table-msg').textContent = '';
+      $('table-dialog').showModal();
+    };
 
-    // Bootstrap
-    (async ()=>{
-      bind();
-      $('env-ok').textContent = (typeof SUPABASE_URL==='string' && typeof SUPABASE_ANON_KEY==='string') ? 'ok' : 'err';
-      $('sdk-ok').textContent = window.supabase ? 'ok' : 'err';
-
+    // Boot + auth state subscription
+    (async function boot(){
       const { data: { session } } = await supabase.auth.getSession();
-      if (session){
-        $('whoami').textContent = 'Utente: ' + (session.user.email || session.user.id);
-        $('auth-ok').textContent = 'on';
-        await loadRole();
-        await Promise.all([loadTavoli(), loadMine()]);
+      SESSION = session || null;
+      const authed = !!session?.user;
+      if (authed){
+        await ensureProfileAndRole();
+        renderAuth(true);
+        await renderTables();
       } else {
-        renderAuth(false);
+        resetUI();
       }
-
-      const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, s)=>{
-        const authed = !!s;
-        renderAuth(authed);
+      const { data: subscription } = supabase.auth.onAuthStateChange(async (_e, s)=>{
+        const authed = !!s?.user;
+        SESSION = s || null;
         if (authed){
-          $('whoami').textContent = 'Utente: ' + (s.user.email || s.user.id);
-          await loadRole();
-          await Promise.all([loadTavoli(), loadMine()]);
+          await ensureProfileAndRole();
+          renderAuth(true);
+          await renderTables();
         } else {
           resetUI();
         }
