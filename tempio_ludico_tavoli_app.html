@@ -10,7 +10,7 @@
   <script src="/env.js"></script>
 
   <style>
-    :root{--ink:#111827;--muted:#6b7280;--b:#e5e7eb;--card:#fff;--brand:#ed445b;--bg:#fafafa;--err:#dc2626}
+    :root{--ink:#111827;--muted:#6b7280;--b:#e5e7eb;--card:#fff;--brand:#ed445b;--bg:#fafafa;--err:#dc2626;--ok:#16a34a;--warn:#f59e0b}
     *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
     header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--b);padding:12px 16px;z-index:10}
     h1{margin:0;font-size:20px}
@@ -20,113 +20,81 @@
     .muted{color:var(--muted);font-size:12px}
     .seat{display:grid;grid-template-columns:140px 1fr auto;gap:10px;align-items:center;border:1px solid var(--b);border-radius:10px;padding:8px 10px;background:#fff;margin-top:8px}
     .pill{border:1px solid var(--b);border-radius:999px;padding:2px 8px;font-size:12px}
+    .status-pending{border-color:var(--warn)}
+    .status-confirmed{border-color:var(--ok)}
+    .status-cancelled{border-color:var(--err)}
     .error{color:var(--err);white-space:pre-wrap}
-    pre{white-space:pre-wrap;background:#fff;border:1px solid var(--b);padding:10px;border-radius:10px;overflow:auto}
-    .toolbar{display:flex;gap:10px;align-items:center;margin:10px 0;flex-wrap:wrap}
-    input[type="search"]{padding:8px 10px;border:1px solid var(--b);border-radius:10px;min-width:260px}
   </style>
 </head>
 <body>
   <header><h1>Prenotazioni Tavoli <span style="color:var(--brand);font-weight:800">Tempio Ludico</span></h1></header>
   <main>
-    <div class="toolbar">
-      <input id="search" type="search" placeholder="Filtra per tavolo o utente…" />
-      <button id="btn-reload">Ricarica</button>
-      <div id="meta" class="muted"></div>
-    </div>
     <div id="content">Caricamento…</div>
-    <details open>
+    <details>
       <summary>Debug</summary>
-      <div class="muted">Verifica chiavi e URL dal tuo <code>env.js</code></div>
-      <pre id="dbg-env"></pre>
-      <div class="muted">Ultima risposta Supabase</div>
-      <pre id="dbg-last"></pre>
+      <pre id="dbg"></pre>
     </details>
   </main>
 
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // --- environment check
-    const ENV = {
-      url:  window.SUPABASE_URL,
-      key:  window.SUPABASE_ANON_KEY,
-      view: 'v_tavolo_reservations' // change to 'tavolo_reservations' ONLY if you renamed it in SQL
-    };
-    document.getElementById('dbg-env').textContent = JSON.stringify({
-      url: ENV.url,
-      key_present: Boolean(ENV.key && ENV.key.length > 20),
-      view: ENV.view
-    }, null, 2);
+    // env.js must set these before this module executes
+    const URL = window.SUPABASE_URL;
+    const KEY = window.SUPABASE_ANON_KEY;
+    const VIEW = 'v_tavolo_reservations'; // ← correct view name
 
-    // Fail fast if env missing
-    if (!ENV.url || !ENV.key) {
-      document.getElementById('content').innerHTML =
-        '<div class="error">Manca SUPABASE_URL o SUPABASE_ANON_KEY in env.js</div>';
-      throw new Error('Missing env');
-    }
+    const out = document.getElementById('content');
+    const dbg = document.getElementById('dbg');
 
-    const supabase = createClient(ENV.url, ENV.key, { auth: { persistSession: true } });
+    function show(obj){ dbg.textContent = JSON.stringify(obj, null, 2); }
+    function fmtDate(s){ try { return s ? new Date(s).toLocaleString() : ''; } catch { return s || ''; } }
 
-    const ui = {
-      content: document.getElementById('content'),
-      search:  document.getElementById('search'),
-      meta:    document.getElementById('meta'),
-      last:    document.getElementById('dbg-last'),
-      reload:  document.getElementById('btn-reload')
-    };
+    if (!URL || !KEY){ out.innerHTML = '<div class="error">Missing SUPABASE env vars</div>'; throw new Error('Missing env'); }
 
-    function fmtDate(s) { try { return s ? new Date(s).toLocaleString() : ''; } catch { return s || ''; } }
+    const sb = createClient(URL, KEY, { auth: { persistSession: true } });
 
-    async function fetchRows() {
-      // Query the VIEW; do NOT query base tables here
-      let q = supabase
-        .from(ENV.view)
+    async function load() {
+      const { data, error, status } = await sb
+        .from(VIEW)
         .select('tavolo_id, tavolo_title, tavolo_starts_at, user_id, display_name, status, created_at')
         .order('tavolo_id', { ascending: true })
         .order('created_at', { ascending: true });
 
-      const { data, error, status } = await q;
-      ui.last.textContent = JSON.stringify({ status, error, rows: data?.length ?? 0, sample: data?.slice(0, 3) }, null, 2);
-      if (error) throw error;
-      return data || [];
-    }
+      show({ status, error, rows: data?.length, sample: data?.slice(0,3) });
 
-    function render(rows) {
-      const term = (ui.search.value || '').toLowerCase().trim();
-      const filtered = term
-        ? rows.filter(r =>
-            (r.tavolo_title || '').toLowerCase().includes(term) ||
-            (r.display_name || '').toLowerCase().includes(term))
-        : rows;
+      if (error) {
+        out.innerHTML = `<div class="error">Errore: ${error.message || error}</div>`;
+        return;
+      }
 
       // group by tavolo
       const byTable = new Map();
-      for (const r of filtered) {
+      for (const r of data || []) {
         if (!byTable.has(r.tavolo_id)) {
           byTable.set(r.tavolo_id, { title: r.tavolo_title || `Tavolo ${r.tavolo_id}`, when: r.tavolo_starts_at, rows: [] });
         }
         byTable.get(r.tavolo_id).rows.push(r);
       }
 
-      ui.meta.textContent = `${filtered.length} prenotazioni visibili`;
-
       if (byTable.size === 0) {
-        ui.content.innerHTML = '<div class="card"><div class="muted">Nessuna prenotazione.</div></div>';
+        out.innerHTML = '<div class="card"><div class="muted">Nessuna prenotazione.</div></div>';
         return;
       }
 
-      ui.content.innerHTML = '<div class="grid"></div>';
-      const grid = ui.content.querySelector('.grid');
+      out.innerHTML = '<div class="grid"></div>';
+      const grid = out.querySelector('.grid');
 
-      for (const [tid, group] of byTable) {
+      for (const [tid, g] of byTable) {
         const card = document.createElement('div');
         card.className = 'card';
-        const when = group.when ? `<div class="muted">Inizio: ${fmtDate(group.when)}</div>` : '';
-        card.innerHTML = `<h2>${group.title}</h2>${when}<div class="muted">Visibile a tutti gli utenti</div>`;
-        for (const r of group.rows) {
+        const when = g.when ? `<div class="muted">Inizio: ${fmtDate(g.when)}</div>` : '';
+        card.innerHTML = `<h2>${g.title}</h2>${when}<div class="muted">Visibile a tutti gli utenti</div>`;
+
+        for (const r of g.rows) {
+          const statusClass = r.status ? ` status-${String(r.status).toLowerCase()}` : '';
           const line = document.createElement('div');
-          line.className = 'seat';
+          line.className = 'seat' + statusClass;
           line.innerHTML = `
             <div>${fmtDate(r.created_at)}</div>
             <div>${r.display_name || '—'}</div>
@@ -137,19 +105,7 @@
       }
     }
 
-    async function boot() {
-      try {
-        const rows = await fetchRows();  // any backend error will be printed in Debug
-        render(rows);
-      } catch (e) {
-        ui.content.innerHTML = `<div class="error">Errore: ${e.message || e}</div>`;
-        console.error(e);
-      }
-    }
-
-    ui.reload.addEventListener('click', boot);
-    ui.search.addEventListener('input', boot);
-    boot();
+    load();
   </script>
 </body>
 </html>
