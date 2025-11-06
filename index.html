@@ -43,8 +43,8 @@
     .table-card{display:grid;grid-template-columns: 1fr;gap:10px}
     .table-act{display:flex;gap:8px;flex-wrap:wrap}
   </style>
+  <!-- Provides SUPABASE_URL and SUPABASE_ANON_KEY -->
   <script src="./env.js"></script>
-  <script type="module" src="https://esm.sh/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="wrap">
@@ -164,9 +164,16 @@
     </form>
   </dialog>
 
+  <!-- App script: import ESM and create client locally -->
   <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+      throw new Error('SUPABASE_URL or SUPABASE_ANON_KEY missing. Check env.js');
+    }
+
     // Supabase client
-    const supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+    const supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
     // State
     let SESSION = null;
@@ -175,7 +182,6 @@
 
     // Shortcuts
     const $ = (id)=>document.getElementById(id);
-    const el = (qs,root=document)=>root.querySelector(qs);
     const fmtErr = (e)=> e?.message || e?.error_description || String(e);
 
     // UI toggles
@@ -193,14 +199,14 @@
       $('whoami').textContent = 'Utente: ' + (user?.email || user?.id || '—');
     }
 
-    // Ensure a profile row exists and load is_admin
+    // Ensure a profile row exists and load profiles.is_admin
     async function ensureProfileAndRole(){
       const { data: { user } } = await supabase.auth.getUser();
       if (!user){ IS_ADMIN=false; setWho('—', null); return; }
 
       const username = user.email?.split('@')[0] || null;
 
-      // Upsert id and username only. Do not touch is_admin here.
+      // Upsert only id and username. Do not touch is_admin here.
       const up = await supabase
         .from('profiles')
         .upsert({ id: user.id, username }, { onConflict: 'id', ignoreDuplicates: false })
@@ -222,7 +228,6 @@
 
     // ---------- Tables and reservations ----------
 
-    // Get all tables, then attach reservations and counts
     async function fetchTablesWithReservations(){
       const { data: tables, error } = await supabase
         .from('tavoli')
@@ -308,8 +313,6 @@
           const frag = document.createDocumentFragment();
           for (const m of list) frag.appendChild(tableCard(m, user));
           host.appendChild(frag);
-
-          // Wire table actions
           host.querySelectorAll('[data-action]').forEach(btn=>{
             const id = btn.getAttribute('data-id');
             const action = btn.getAttribute('data-action');
@@ -327,12 +330,11 @@
         if (action === 'reserve'){
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) throw new Error('Login richiesto');
-          // Avoid duplicate reservation
           const existing = await supabase.from('reservations')
             .select('id').eq('tavolo_id', id).eq('user_id', user.id).maybeSingle();
-          if (!existing.error && existing.data){ /* already reserved */ }
-          else {
-            // snapshot username
+          if (!existing.error && existing.data){
+            // already reserved
+          } else {
             const prof = await supabase.from('profiles').select('username').eq('id', user.id).maybeSingle();
             const username_snapshot = prof.data?.username || user.email || user.id;
             const ins = await supabase.from('reservations')
@@ -364,7 +366,6 @@
         }
         if (action === 'edit'){
           if (!IS_ADMIN){ throw new Error('Solo admin'); }
-          // Load table for editing
           const q = await supabase.from('tavoli').select('*').eq('id', id).maybeSingle();
           if (q.error) throw q.error;
           EDITING_TABLE_ID = q.data.id;
@@ -387,7 +388,6 @@
 
     // ---------- Create/Edit table ----------
     function toLocalInput(ts){
-      // Convert ISO to yyyy-MM-ddThh:mm for input
       const d = new Date(ts);
       const pad = (n)=>String(n).padStart(2,'0');
       const v = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -473,7 +473,7 @@
       $('mine-list').querySelectorAll('[data-cancel]').forEach(b=>{
         b.onclick = async ()=>{
           const id = b.getAttribute('data-cancel');
-          const del = await supabase.from('reservations').delete().eq('tavolo_id', id).eq('user_id', user.id);
+          const del = await supabase.from('reservations').delete().eq('tavolo_id', id).eq('user_id', (await supabase.auth.getUser()).data.user.id);
           if (del.error){ alert(fmtErr(del.error)); return; }
           await renderTables();
           $('mine-dialog').close();
@@ -520,7 +520,7 @@
       $('tables-log').textContent = '';
     }
 
-    // Wire
+    // Wire buttons
     $('btn-login').onclick = ()=> $('login-email').focus();
     $('btn-logout').onclick = async ()=>{
       await supabase.auth.signOut();
