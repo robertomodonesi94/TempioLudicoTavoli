@@ -133,7 +133,7 @@
         <input type="hidden" id="edit-id" />
         <div class="cols-2">
           <div>
-            <label for="edit-title">Titolo</label>
+            <label for="edit-title">Nome tavolo</label>
             <input id="edit-title" required maxlength="120" />
           </div>
           <div>
@@ -141,24 +141,38 @@
             <input id="edit-starts_at" type="datetime-local" required />
           </div>
         </div>
-        <label for="edit-description">Descrizione</label>
-        <textarea id="edit-description" maxlength="2000"></textarea>
+
         <div class="cols-2">
+          <div>
+            <label for="edit-duration">Durata (minuti)</label>
+            <input id="edit-duration" type="number" min="1" step="1" required />
+          </div>
           <div>
             <label for="edit-max_seats">Posti massimi</label>
             <input id="edit-max_seats" type="number" min="1" max="999" required />
           </div>
+        </div>
+
+        <div class="cols-2">
           <div>
-            <label for="edit-complexity_label">Difficoltà</label>
+            <label for="edit-complexity_label">Complessità</label>
             <select id="edit-complexity_label">
-              <option value="facile">facile</option>
-              <option value="medio">medio</option>
-              <option value="difficile">difficile</option>
+              <option value="molto semplice">Molto semplice</option>
+              <option value="semplice">Semplice</option>
+              <option value="medio">Medio</option>
+              <option value="complesso">Complesso</option>
+              <option value="molto complesso">Molto complesso</option>
             </select>
           </div>
+          <div>
+            <label for="edit-image_url">Immagine (URL)</label>
+            <input id="edit-image_url" type="url" placeholder="https://..." />
+          </div>
         </div>
-        <label for="edit-image_url">Immagine (URL)</label>
-        <input id="edit-image_url" type="url" placeholder="https://..." />
+
+        <label for="edit-description">Descrizione</label>
+        <textarea id="edit-description" maxlength="2000"></textarea>
+
         <label for="edit-tags">Tag (separati da virgola)</label>
         <input id="edit-tags" placeholder="boardgame,gdr,..." />
         <div id="edit-error" class="error" style="margin-top:8px"></div>
@@ -167,6 +181,70 @@
       <div class="dlg-foot">
         <button type="button" class="btn-danger" id="edit-delete">Elimina</button>
         <button type="submit" class="btn-accent">Salva</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Crea Tavolo -->
+  <dialog id="create-dialog">
+    <form id="create-form" method="dialog">
+      <div class="dlg-head">
+        <div>
+          <div>Crea tavolo</div>
+          <div id="create-subtitle" class="muted">Compila tutti i campi obbligatori</div>
+        </div>
+        <button type="button" onclick="document.getElementById('create-dialog').close()">Chiudi</button>
+      </div>
+      <div class="dlg-body">
+        <div class="cols-2">
+          <div>
+            <label for="title">Nome tavolo</label>
+            <input id="title" required maxlength="120" />
+          </div>
+          <div>
+            <label for="starts_at">Data e ora inizio</label>
+            <input id="starts_at" type="datetime-local" required />
+          </div>
+        </div>
+
+        <div class="cols-2">
+          <div>
+            <label for="duration_minutes">Durata (minuti)</label>
+            <input id="duration_minutes" type="number" min="1" step="1" required />
+          </div>
+          <div>
+            <label for="max_seats">Posti massimi</label>
+            <input id="max_seats" type="number" min="1" max="999" required />
+          </div>
+        </div>
+
+        <div class="cols-2">
+          <div>
+            <label for="complexity_label">Complessità</label>
+            <select id="complexity_label">
+              <option value="molto semplice">Molto semplice</option>
+              <option value="semplice">Semplice</option>
+              <option value="medio" selected>Medio</option>
+              <option value="complesso">Complesso</option>
+              <option value="molto complesso">Molto complesso</option>
+            </select>
+          </div>
+          <div>
+            <label for="image_url">Immagine (URL)</label>
+            <input id="image_url" type="url" placeholder="https://..." />
+          </div>
+        </div>
+
+        <label for="description">Descrizione</label>
+        <textarea id="description" maxlength="2000" required placeholder="Dettagli, regolamento, requisiti."></textarea>
+
+        <label for="tags">Tag (separati da virgola)</label>
+        <input id="tags" placeholder="boardgame,gdr,..." />
+        <div id="create-error" class="error" style="margin-top:8px"></div>
+        <div id="create-ok" class="ok" style="margin-top:8px"></div>
+      </div>
+      <div class="dlg-foot">
+        <button type="submit" class="btn-accent">Crea</button>
       </div>
     </form>
   </dialog>
@@ -195,10 +273,30 @@
       $('auth-ok').textContent = authed ? 'on' : 'off';
     }
 
+    // Helpers for datetime-local <-> ISO
+    function isoToLocal(iso){
+      if (!iso) return '';
+      const d = new Date(iso);
+      const pad = n => String(n).padStart(2,'0');
+      return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    function localToIso(localStr){
+      const d = new Date(localStr);
+      return d.toISOString();
+    }
+    function parseFutureLocalDateTime(localStr){
+      if (!localStr) return { ok:false, error:'Data/ora richiesta' };
+      const d = new Date(localStr);
+      if (isNaN(d.getTime())) return { ok:false, error:'Data/ora non valida' };
+      if (d.getTime() <= Date.now()) return { ok:false, error:'La data/ora deve essere nel futuro' };
+      return { ok:true, value: d.toISOString() };
+    }
+
+    // ---------- Data ----------
     async function fetchTavoli(){
       const { data, error } = await supabase
         .from('tavoli')
-        .select('id,title,description,starts_at,max_seats,complexity_label,image_url,created_at,creator_id,tags')
+        .select('id,title,description,duration_minutes,starts_at,max_seats,complexity_label,image_url,created_at,creator_id,tags')
         .order('created_at',{ascending:false})
         .limit(200);
       if (error) throw error;
@@ -259,6 +357,7 @@
       return { rows, usernames };
     }
 
+    // ---------- UI ----------
     function tavoloCard(t, usernames){
       const el = document.createElement('div');
       el.className='item';
@@ -285,6 +384,7 @@
             <h3 style="margin:0">${t.title}</h3>
             <div class="meta">
               <span>${fmt(t.starts_at)}</span>
+              <span>${t.duration_minutes ? `${t.duration_minutes} min` : ''}</span>
               <span>Posti: ${t.seats_taken}/${t.max_seats}</span>
               <span>Diff.: ${t.complexity_label||'medio'}</span>
               <span>Creato da: ${usernames.get(t.creator_id) || t.creator_id || '—'}</span>
@@ -410,19 +510,6 @@
     }
 
     // ----- Modifica Tavolo -----
-    function isoToLocal(iso){
-      if (!iso) return '';
-      // Expecting UTC or offset; convert to local for datetime-local input
-      const d = new Date(iso);
-      const pad = n => String(n).padStart(2,'0');
-      return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-    }
-    function localToIso(localStr){
-      // datetime-local returns local time; convert to ISO with local timezone preserved as UTC time
-      const d = new Date(localStr);
-      return d.toISOString();
-    }
-
     function openEdit(t){
       if (!IS_ADMIN){ alert('Solo admin.'); return; }
       $('edit-error').textContent = '';
@@ -432,6 +519,7 @@
       $('edit-title').value = t.title || '';
       $('edit-description').value = t.description || '';
       $('edit-starts_at').value = isoToLocal(t.starts_at);
+      $('edit-duration').value = t.duration_minutes ?? 60;
       $('edit-max_seats').value = t.max_seats ?? 1;
       $('edit-complexity_label').value = t.complexity_label || 'medio';
       $('edit-image_url').value = t.image_url || '';
@@ -463,19 +551,29 @@
       const id = $('edit-id').value;
       const title = $('edit-title').value.trim();
       const description = $('edit-description').value.trim();
-      const starts_at_local = $('edit-starts_at').value;
+      const starts_local = $('edit-starts_at').value;
+      const duration = parseInt($('edit-duration').value, 10);
       const max_seats = parseInt($('edit-max_seats').value, 10);
       const complexity_label = $('edit-complexity_label').value || 'medio';
       const image_url = $('edit-image_url').value.trim();
       const tags = $('edit-tags').value.split(',').map(s=>s.trim()).filter(Boolean);
 
-      if (!title){ $('edit-error').textContent = 'Titolo richiesto.'; return; }
-      if (!starts_at_local){ $('edit-error').textContent = 'Data/ora richiesta.'; return; }
+      if (!title){ $('edit-error').textContent = 'Nome tavolo richiesto.'; return; }
+      const dt = parseFutureLocalDateTime(starts_local);
+      if (!dt.ok){ $('edit-error').textContent = dt.error; return; }
+      if (!Number.isFinite(duration) || duration < 1){ $('edit-error').textContent = 'Durata non valida.'; return; }
       if (!Number.isFinite(max_seats) || max_seats < 1){ $('edit-error').textContent = 'Posti massimi non validi.'; return; }
 
-      const starts_at = localToIso(starts_at_local);
-
-      const payload = { title, description, starts_at, max_seats, complexity_label, image_url: image_url || null, tags };
+      const payload = {
+        title,
+        description,
+        starts_at: dt.value,
+        duration_minutes: duration,
+        max_seats,
+        complexity_label,
+        image_url: image_url || null,
+        tags
+      };
       const { error } = await supabase.from('tavoli').update(payload).eq('id', id);
       if (error){ $('edit-error').textContent = error.message || String(error); return; }
 
@@ -484,7 +582,68 @@
       $('edit-dialog').close();
     });
 
-    // ----- Auth bootstrap -----
+    // ----- Crea Tavolo -----
+    function openCreate(){
+      if (!IS_ADMIN){ alert('Solo admin.'); return; }
+      $('create-error').textContent = '';
+      $('create-ok').textContent = '';
+      $('title').value = '';
+      $('description').value = '';
+      $('starts_at').value = '';
+      $('duration_minutes').value = 60;
+      $('max_seats').value = 4;
+      $('complexity_label').value = 'medio';
+      $('image_url').value = '';
+      $('tags').value = '';
+      $('create-dialog').showModal();
+    }
+
+    $('create-form').addEventListener('submit', async (ev)=>{
+      ev.preventDefault();
+      if (!IS_ADMIN) return alert('Solo admin.');
+      $('create-error').textContent = '';
+      $('create-ok').textContent = '';
+
+      const title = $('title').value.trim();
+      const description = $('description').value.trim();
+      const starts_local = $('starts_at').value;
+      const duration = parseInt($('duration_minutes').value, 10);
+      const max_seats = parseInt($('max_seats').value, 10);
+      const complexity_label = $('complexity_label').value || 'medio';
+      const image_url = $('image_url').value.trim();
+      const tags = $('tags').value.split(',').map(s=>s.trim()).filter(Boolean);
+
+      if (!title){ $('create-error').textContent = 'Nome tavolo richiesto.'; return; }
+      if (!description){ $('create-error').textContent = 'Descrizione richiesta.'; return; }
+      const dt = parseFutureLocalDateTime(starts_local);
+      if (!dt.ok){ $('create-error').textContent = dt.error; return; }
+      if (!Number.isFinite(duration) || duration < 1){ $('create-error').textContent = 'Durata non valida.'; return; }
+      if (!Number.isFinite(max_seats) || max_seats < 1){ $('create-error').textContent = 'Posti massimi non validi.'; return; }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user){ $('create-error').textContent = 'Sessione non valida.'; return; }
+
+      const payload = {
+        title,
+        description,
+        starts_at: dt.value,
+        duration_minutes: duration,
+        max_seats,
+        complexity_label,
+        image_url: image_url || null,
+        creator_id: user.id,
+        tags
+      };
+
+      const { error } = await supabase.from('tavoli').insert(payload);
+      if (error){ $('create-error').textContent = error.message || String(error); return; }
+
+      $('create-ok').textContent = 'Creato.';
+      await loadTavoli();
+      $('create-dialog').close();
+    });
+
+    // ---------- Auth bootstrap ----------
     (async ()=>{
       $('env-ok').textContent = (typeof SUPABASE_URL==='string' && typeof SUPABASE_ANON_KEY==='string') ? 'ok' : 'err';
       $('sdk-ok').textContent = window.supabase ? 'ok' : 'err';
@@ -519,6 +678,7 @@
         $('mine-dialog').showModal();
       });
 
+      $('btn-open-create').addEventListener('click', openCreate);
       $('btn-refresh')?.addEventListener('click', loadTavoli);
 
       supabase.auth.onAuthStateChange(async (_e, s) => {
@@ -540,6 +700,7 @@
     async function loadRole(){
       const { data: { user } } = await supabase.auth.getUser();
       if (!user){ IS_ADMIN=false; $('role').textContent='Ruolo: —'; return; }
+      // Ensure profile row exists then read role
       await supabase.from('profiles').upsert({ id: user.id }, { onConflict: 'id' }).select().maybeSingle();
       const { data } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
       const role = data?.role || 'user';
