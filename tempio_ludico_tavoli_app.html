@@ -42,7 +42,7 @@
     .right{margin-left:auto}
     .hidden{display:none}
     .center{text-align:center}
-    .avatar{width:28px;height:28px;border-radius:50%;background:#ffd7da;display:inline-grid;place-items:center;font-weight:800;color:var(--red)}
+    .avatar{width:28px;height:28px;border-radius:50%;background:#ffd7da;display:inline-grid;place-items:center;font-weight:800;color:#red}
   </style>
 </head>
 <body>
@@ -193,51 +193,46 @@
     }
 
     async function fetchProfile(){
-      const { data, error } = await supabase.from('profiles').select('id, username, is_admin, created_at').eq('id', session.user.id).maybeSingle()
+      const { data, error } = await supabase.from('profiles')
+        .select('id, username, is_admin, created_at')
+        .eq('id', session.user.id)
+        .maybeSingle()
       if(error){ console.error(error) }
       profile = data
     }
 
-    function renderLogin(){
-      const badge = el('div', {}, [
-        el('span', { class:'avatar' , html:(profile?.username||'?').slice(0,2).toUpperCase() }),
-        el('span', { style:'margin-left:8px;font-weight:800' , html: profile?.username||'ospite' }),
-        profile?.is_admin ? el('span',{ class:'pill', style:'margin-left:8px' , html:'ADMIN'}) : el('span')
-      ])
-      $('#userBadge').innerHTML = ''
-      $('#userBadge').appendChild(badge)
-
-      if(profile?.username){
-        $('#loginCard').classList.add('hidden')
-        $('#tabs').classList.remove('hidden')
-        $('#page-tavoli').classList.remove('hidden')
-        loadTables()
-        if(profile?.is_admin) $('#tabUtenti').classList.remove('hidden')
-      } else {
-        $('#loginCard').classList.remove('hidden')
-      }
-    }
-
-    // FIX: avoid select=* on insert, request only needed columns
+    // LOGIN: insert-only, no upsert, and no select=*
     $('#btnLogin').addEventListener('click', async ()=>{
       const username = ($('#usernameInput').value||'').trim()
       if(!username){ alert('Inserisci un username.'); return }
-      const { data, error } = await supabase
+      // 1) Try to insert your own row
+      const { data, error, status } = await supabase
         .from('profiles')
         .insert({ id: session.user.id, username })
-        .select('id, username, is_admin')   // <-- avoids forbidden on select=*
+        .select('id, username, is_admin')     // ← request only allowed columns
         .single()
-      if(error){
-        if(error.code === '23505' || (error.message||'').includes('duplicate')){
-          alert('Username già in uso. Scegline un altro.')
-          return
-        }
-        console.error(error)
-        alert('Errore creazione profilo.')
+
+      if(!error && data){
+        profile = data
+        renderLogin()
         return
       }
-      profile = data
-      renderLogin()
+
+      // 2) If duplicate or already exists, fetch your row
+      if(error && (error.code === '23505' || status === 409)){
+        const { data: me, error: e2 } = await supabase
+          .from('profiles')
+          .select('id, username, is_admin')
+          .eq('id', session.user.id)
+          .maybeSingle()
+        if(e2){ console.error(e2); alert('Errore lettura profilo.'); return }
+        profile = me
+        renderLogin()
+        return
+      }
+
+      console.error(error)
+      alert('Errore creazione profilo.')
     })
 
     // Crea tavolo
