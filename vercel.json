@@ -1,6 +1,10 @@
 {
   "redirects": [
-    { "source": "/favicon.ico", "destination": "/LogoTempioLudicoNoBackground.PNG", "permanent": true }
+    {
+      "source": "/favicon.ico",
+      "destination": "/LogoTempioLudicoNoBackground.PNG",
+      "permanent": true
+    }
   ],
   "headers": [
     {
@@ -16,6 +20,18 @@
       ]
     },
     {
+      "source": "/",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
       "source": "/env.js",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" }
@@ -27,5 +43,6 @@
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     }
-  ]
+  ],
+  "trailingSlash": false
 }
