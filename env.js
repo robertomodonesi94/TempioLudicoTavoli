@@ -14,8 +14,8 @@
   // ========================== REQUIRED ==========================
   // Set your real values here (no trailing slash on URL)
   // ==============================================================
-  SUPABASE_URL   = "https://xbiymioeyhvlgacfjeqz.supabase.co";
-  SUPABASE_ANON  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhiaXltaW9leWh2bGdhY2ZqZXF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1MzMzNjAsImV4cCI6MjA3NjEwOTM2MH0.dRSsQqgGwvCILMXXCg7Argiy8rQ2SeupTQIzqs5H7dc";
+  var SUPABASE_URL   = "https://xbiymioeyhvlgacfjeqz.supabase.co";
+  var SUPABASE_ANON  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhiaXltaW9leWh2bGdhY2ZqZXF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1MzMzNjAsImV4cCI6MjA3NjEwOTM2MH0.dRSsQqgGwvCILMXXCg7Argiy8rQ2SeupTQIzqs5H7dc";
   // ==============================================================
 
   // Small helper to wipe local auth state if you rotate keys
