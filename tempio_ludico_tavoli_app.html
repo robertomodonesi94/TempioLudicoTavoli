@@ -5,12 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tempio Ludico — Prenotazioni Tavoli</title>
 
-  <!-- SDK + env -->
-  <script type="module" src="https://esm.sh/@supabase/supabase-js@2"></script>
   <script src="/env.js"></script>
+  <script type="module" src="https://esm.sh/@supabase/supabase-js@2"></script>
 
   <style>
-    :root{--ink:#111827;--muted:#6b7280;--b:#e5e7eb;--card:#fff;--brand:#ed445b;--bg:#fafafa;--err:#dc2626;--ok:#16a34a;--warn:#f59e0b}
+    :root{--ink:#111827;--muted:#6b7280;--b:#e5e7eb;--card:#fff;--brand:#ed445b;--bg:#fafafa;--err:#dc2626}
     *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
     header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--b);padding:12px 16px;z-index:10}
     h1{margin:0;font-size:20px}
@@ -20,17 +19,15 @@
     .muted{color:var(--muted);font-size:12px}
     .seat{display:grid;grid-template-columns:140px 1fr auto;gap:10px;align-items:center;border:1px solid var(--b);border-radius:10px;padding:8px 10px;background:#fff;margin-top:8px}
     .pill{border:1px solid var(--b);border-radius:999px;padding:2px 8px;font-size:12px}
-    .status-pending{border-color:var(--warn)}
-    .status-confirmed{border-color:var(--ok)}
-    .status-cancelled{border-color:var(--err)}
     .error{color:var(--err);white-space:pre-wrap}
+    pre{white-space:pre-wrap;background:#fff;border:1px solid var(--b);padding:10px;border-radius:10px}
   </style>
 </head>
 <body>
   <header><h1>Prenotazioni Tavoli <span style="color:var(--brand);font-weight:800">Tempio Ludico</span></h1></header>
   <main>
     <div id="content">Caricamento…</div>
-    <details>
+    <details open>
       <summary>Debug</summary>
       <pre id="dbg"></pre>
     </details>
@@ -39,38 +36,39 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // env.js must set these before this module executes
+    // Fail-fast env
     const URL = window.SUPABASE_URL;
     const KEY = window.SUPABASE_ANON_KEY;
-    const VIEW = 'v_tavolo_reservations'; // ← correct view name
+    const VIEW = 'v_tavolo_reservations';
+    if (!URL || !KEY) {
+      document.getElementById('content').innerHTML = '<div class="error">Missing SUPABASE_URL or SUPABASE_ANON_KEY</div>';
+      throw new Error('Missing env');
+    }
 
+    const supabase = createClient(URL, KEY, { auth: { persistSession: true } });
     const out = document.getElementById('content');
     const dbg = document.getElementById('dbg');
 
-    function show(obj){ dbg.textContent = JSON.stringify(obj, null, 2); }
     function fmtDate(s){ try { return s ? new Date(s).toLocaleString() : ''; } catch { return s || ''; } }
-
-    if (!URL || !KEY){ out.innerHTML = '<div class="error">Missing SUPABASE env vars</div>'; throw new Error('Missing env'); }
-
-    const sb = createClient(URL, KEY, { auth: { persistSession: true } });
+    function show(obj){ dbg.textContent = JSON.stringify(obj, null, 2); }
 
     async function load() {
-      const { data, error, status } = await sb
+      const { data, error, status } = await supabase
         .from(VIEW)
         .select('tavolo_id, tavolo_title, tavolo_starts_at, user_id, display_name, status, created_at')
         .order('tavolo_id', { ascending: true })
         .order('created_at', { ascending: true });
 
-      show({ status, error, rows: data?.length, sample: data?.slice(0,3) });
+      show({ status, error, rows: data?.length, sample: data?.slice?.(0,3) });
 
       if (error) {
         out.innerHTML = `<div class="error">Errore: ${error.message || error}</div>`;
         return;
       }
+      const rows = data || [];
 
-      // group by tavolo
       const byTable = new Map();
-      for (const r of data || []) {
+      for (const r of rows) {
         if (!byTable.has(r.tavolo_id)) {
           byTable.set(r.tavolo_id, { title: r.tavolo_title || `Tavolo ${r.tavolo_id}`, when: r.tavolo_starts_at, rows: [] });
         }
@@ -90,11 +88,9 @@
         card.className = 'card';
         const when = g.when ? `<div class="muted">Inizio: ${fmtDate(g.when)}</div>` : '';
         card.innerHTML = `<h2>${g.title}</h2>${when}<div class="muted">Visibile a tutti gli utenti</div>`;
-
         for (const r of g.rows) {
-          const statusClass = r.status ? ` status-${String(r.status).toLowerCase()}` : '';
           const line = document.createElement('div');
-          line.className = 'seat' + statusClass;
+          line.className = 'seat';
           line.innerHTML = `
             <div>${fmtDate(r.created_at)}</div>
             <div>${r.display_name || '—'}</div>
